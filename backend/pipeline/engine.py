@@ -89,12 +89,14 @@ def _detect_in_frame(frame_path: str, hint_bbox: list, model) -> list | None:
 
 
 def _bbox_mask(frame_path: str, bbox: list) -> np.ndarray:
-    """Solid rectangular mask covering the full bbox. Best input for LaMa."""
+    """Solid rectangular mask covering the full bbox with expansion padding."""
     frame = cv2.imread(frame_path)
     h, w  = frame.shape[:2]
     x1, y1, x2, y2 = [int(v) for v in bbox]
-    # Add 8px padding so LaMa has no leftover edge pixels to confuse it
-    pad = 8
+    # Expand by 15% of the shorter bbox dimension (min 20px).
+    # YOLO tends to hug the visible content edge and miss object borders such
+    # as TV bezels; this expansion ensures full coverage.
+    pad = max(20, int(min(x2 - x1, y2 - y1) * 0.17))
     x1=max(0,x1-pad); y1=max(0,y1-pad)
     x2=min(w,x2+pad); y2=min(h,y2+pad)
     mask = np.zeros((h, w), dtype=np.uint8)
