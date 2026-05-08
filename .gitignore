@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# Environment / secrets
+.env
+*.env
+
+# Model weights (large binary)
+*.pt
+*.pth
+*.onnx
+
+# Runtime output directories
+backend/uploads/
+backend/storage/
+backend/tmp_frames/
+backend/tmp_verify/
+
+# Logs
+*.log
+*.out
+*.err
+
+# Node (unused installer)
+*.msi
+
+# OS
+.DS_Store
+Thumbs.db

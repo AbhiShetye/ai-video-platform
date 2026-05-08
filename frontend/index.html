@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FrameAI — Object Removal</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f13;color:#e8eaf0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* TOP BAR */
+.topbar{height:52px;background:#18181f;border-bottom:1px solid #2a2a38;display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;}
+.logo{font-size:16px;font-weight:800;letter-spacing:-.3px;background:linear-gradient(135deg,#818cf8,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.topbar-sep{width:1px;height:20px;background:#2a2a38;}
+.topbar-step{font-size:12px;color:#6b7280;display:flex;align-items:center;gap:6px;}
+.topbar-step.done{color:#34d399;}
+.topbar-step.active{color:#818cf8;font-weight:600;}
+.step-n{width:18px;height:18px;border-radius:50%;background:#2a2a38;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.topbar-step.active .step-n{background:#818cf8;color:#fff;}
+.topbar-step.done .step-n{background:#34d399;color:#0f0f13;}
+
+/* MAIN LAYOUT */
+.main{flex:1;display:flex;min-height:0;}
+
+/* VIDEO SIDE */
+.video-side{flex:1;display:flex;flex-direction:column;min-width:0;}
+.video-wrap{flex:1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;min-height:0;}
+#vid{max-width:100%;max-height:100%;display:block;}
+#bbox-canvas{position:absolute;top:0;left:0;pointer-events:none;}
+.drop-zone{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;border:2px dashed #2a2a38;transition:border-color .2s;}
+.drop-zone:hover{border-color:#818cf8;}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{font-size:48px;opacity:.3;}
+.drop-title{font-size:18px;font-weight:700;color:#9ca3af;}
+.drop-sub{font-size:13px;color:#4b5563;}
+
+/* CONTROLS BAR below video */
+.vid-controls{height:44px;background:#18181f;border-top:1px solid #2a2a38;display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;}
+#play-btn{width:32px;height:32px;border-radius:8px;background:#2a2a38;border:none;cursor:pointer;font-size:14px;color:#e8eaf0;display:flex;align-items:center;justify-content:center;}
+#play-btn:hover{background:#3a3a50;}
+.timecode{font-size:11px;color:#6b7280;font-family:monospace;min-width:90px;}
+
+/* TIMELINE */
+.timeline{height:52px;background:#18181f;border-top:1px solid #2a2a38;position:relative;cursor:pointer;flex-shrink:0;}
+.tl-track{position:absolute;top:50%;left:12px;right:12px;height:6px;background:#2a2a38;border-radius:3px;transform:translateY(-50%);}
+.tl-range{position:absolute;top:0;height:100%;background:rgba(129,140,248,.35);border-radius:3px;}
+.tl-handle{position:absolute;top:50%;width:14px;height:26px;background:#818cf8;border-radius:4px;transform:translate(-50%,-50%);cursor:ew-resize;border:2px solid #fff;}
+.tl-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ef4444;pointer-events:none;}
+.tl-labels{position:absolute;bottom:4px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:10px;color:#4b5563;font-family:monospace;}
+
+/* RIGHT PANEL */
+.panel{width:300px;background:#18181f;border-left:1px solid #2a2a38;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.panel-sec{padding:16px;border-bottom:1px solid #2a2a38;}
+.panel-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#6b7280;margin-bottom:10px;}
+
+/* OBJECT LIST */
+.obj-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid #2a2a38;background:#0f0f13;cursor:pointer;margin-bottom:6px;transition:all .15s;}
+.obj-item:hover{border-color:#818cf8;background:#1a1a2e;}
+.obj-item.selected{border-color:#818cf8;background:#1e1e3f;}
+.obj-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.obj-name{flex:1;font-size:13px;font-weight:600;}
+.obj-conf{font-size:11px;color:#34d399;font-family:monospace;}
+.obj-none{font-size:12px;color:#4b5563;text-align:center;padding:20px 0;}
+
+/* DETECT BUTTON */
+.detect-btn{width:100%;padding:10px;background:#2a2a38;border:1px solid #3a3a50;border-radius:8px;color:#e8eaf0;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;margin-top:4px;}
+.detect-btn:hover{background:#3a3a50;border-color:#818cf8;}
+.detect-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* TIME INPUTS */
+.time-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.tf label{display:block;font-size:10px;color:#6b7280;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;}
+.tf input{width:100%;background:#0f0f13;border:1px solid #2a2a38;border-radius:6px;padding:8px 10px;color:#e8eaf0;font-family:monospace;font-size:13px;}
+.tf input:focus{outline:none;border-color:#818cf8;}
+
+/* SELECTED OBJECT */
+.sel-box{background:#1e1e3f;border:1px solid rgba(129,140,248,.4);border-radius:8px;padding:12px;}
+.sel-name{font-size:14px;font-weight:700;margin-bottom:2px;}
+.sel-sub{font-size:11px;color:#6b7280;}
+
+/* PROCESS BUTTON */
+.proc-btn{width:100%;padding:14px;background:linear-gradient(135deg,#818cf8,#38bdf8);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;position:relative;overflow:hidden;}
+.proc-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(129,140,248,.4);}
+.proc-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.proc-btn.running::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);animation:sweep 1.2s infinite;}
+@keyframes sweep{from{transform:translateX(-100%);}to{transform:translateX(100%);}}
+
+/* PROGRESS */
+.progress-wrap{display:none;}
+.progress-wrap.on{display:block;}
+.prog-bar-bg{height:6px;background:#2a2a38;border-radius:3px;overflow:hidden;margin-bottom:8px;}
+.prog-bar{height:100%;width:0%;background:linear-gradient(90deg,#818cf8,#38bdf8);border-radius:3px;transition:width .4s;}
+.prog-label{font-size:12px;color:#9ca3af;text-align:center;}
+
+/* RESULT */
+.result-wrap{display:none;}
+.result-wrap.on{display:block;}
+.dl-btn{width:100%;padding:12px;background:#059669;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;transition:all .2s;}
+.dl-btn:hover{background:#047857;}
+.new-btn{width:100%;padding:10px;background:#2a2a38;border:1px solid #3a3a50;border-radius:8px;color:#9ca3af;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
+.new-btn:hover{background:#3a3a50;}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#1e1e2e;border:1px solid #2a2a38;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:600;z-index:9999;transition:transform .3s,opacity .3s;opacity:0;max-width:340px;text-align:center;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.toast.ok{border-color:#34d399;color:#34d399;}
+.toast.err{border-color:#f87171;color:#f87171;}
+.toast.inf{border-color:#818cf8;color:#818cf8;}
+
+/* SPINNER */
+.spin{width:16px;height:16px;border:2px solid #3a3a50;border-top-color:#818cf8;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* UPLOAD PROGRESS */
+.uploading{display:none;flex-direction:column;align-items:center;gap:10px;}
+.uploading.on{display:flex;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">FrameAI</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-step" id="s1"><div class="step-n">1</div>Upload</div>
+  <div class="topbar-step" id="s2"><div class="step-n">2</div>Detect</div>
+  <div class="topbar-step" id="s3"><div class="step-n">3</div>Select</div>
+  <div class="topbar-step" id="s4"><div class="step-n">4</div>Remove</div>
+  <div class="topbar-step" id="s5"><div class="step-n">5</div>Download</div>
+</div>
+
+<div class="main">
+  <!-- VIDEO -->
+  <div class="video-side">
+    <div class="video-wrap" id="videoWrap">
+      <!-- Drop zone -->
+      <div class="drop-zone" id="dropZone">
+        <input type="file" accept="video/*" id="fileInput" onchange="onFileChosen(event)">
+        <div class="drop-icon">&#9654;</div>
+        <div class="drop-title">Drop video here</div>
+        <div class="drop-sub">MP4 · MOV · AVI · MKV</div>
+      </div>
+      <!-- Uploading indicator -->
+      <div class="uploading" id="uploading">
+        <div class="spin" style="width:32px;height:32px;border-width:3px;"></div>
+        <div style="font-size:13px;color:#9ca3af;">Uploading...</div>
+      </div>
+      <!-- Video + canvas overlay -->
+      <video id="vid" style="display:none;" preload="metadata"></video>
+      <canvas id="bbox-canvas"></canvas>
+    </div>
+
+    <div class="vid-controls" id="vidControls" style="display:none;">
+      <button id="play-btn" onclick="togglePlay()">&#9654;</button>
+      <div class="timecode" id="timecode">0:00 / 0:00</div>
+    </div>
+
+    <div class="timeline" id="timeline" style="display:none;" onmousedown="tlDown(event)">
+      <div class="tl-track">
+        <div class="tl-range" id="tlRange"></div>
+        <div class="tl-handle" id="tlL" style="left:0%"></div>
+        <div class="tl-handle" id="tlR" style="left:100%"></div>
+        <div class="tl-playhead" id="tlPh" style="left:0%"></div>
+      </div>
+      <div class="tl-labels" id="tlLabels"></div>
+    </div>
+  </div>
+
+  <!-- PANEL -->
+  <div class="panel">
+
+    <!-- OBJECTS -->
+    <div class="panel-sec">
+      <div class="panel-label">Detected Objects</div>
+      <div id="objList"><div class="obj-none">Upload a video to start</div></div>
+      <button class="detect-btn" id="detectBtn" onclick="runDetect()" disabled>&#8635; Scan for Objects</button>
+    </div>
+
+    <!-- SELECTED -->
+    <div class="panel-sec" id="selSec" style="display:none;">
+      <div class="panel-label">Selected Object</div>
+      <div class="sel-box">
+        <div class="sel-name" id="selName">—</div>
+        <div class="sel-sub" id="selSub">Click an object above or on the video</div>
+      </div>
+    </div>
+
+    <!-- TIME RANGE -->
+    <div class="panel-sec" id="rangeSec" style="display:none;">
+      <div class="panel-label">Remove from (seconds)</div>
+      <div class="time-row">
+        <div class="tf"><label>Start</label><input type="number" id="tStart" value="0" min="0" step="0.1" oninput="syncTimeline()"></div>
+        <div class="tf"><label>End</label><input type="number" id="tEnd" value="5" min="0" step="0.1" oninput="syncTimeline()"></div>
+      </div>
+    </div>
+
+    <!-- PROCESS -->
+    <div class="panel-sec" id="procSec" style="display:none;">
+      <button class="proc-btn" id="procBtn" onclick="process()">&#9889; Remove Object</button>
+      <div style="height:12px;"></div>
+      <div class="progress-wrap" id="progWrap">
+        <div class="prog-bar-bg"><div class="prog-bar" id="progBar"></div></div>
+        <div class="prog-label" id="progLabel">Starting...</div>
+      </div>
+      <div class="result-wrap" id="resultWrap">
+        <button class="dl-btn" onclick="download()">&#11015; Download Edited Video</button>
+        <button class="new-btn" onclick="reset()">+ New Video</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+let videoFile = null;
+let duration = 0;
+let objects = [];
+let selected = null;
+let jobId = null;
+let pollTimer = null;
+let rafId = null;
+let dragging = null;
+let editS = 0, editE = 0;
+
+// ── COLORS ────────────────────────────────────────────────────────────
+const COLORS = ['#818cf8','#38bdf8','#34d399','#fbbf24','#fb923c','#f87171'];
+
+// ── STEP INDICATOR ────────────────────────────────────────────────────
+function setStep(n) {
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('s' + i);
+    el.className = 'topbar-step' + (i < n ? ' done' : i === n ? ' active' : '');
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || 'inf');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ── UPLOAD ────────────────────────────────────────────────────────────
+function onFileChosen(e) {
+  const file = e.target.files[0];
+  if (file) uploadFile(file);
+}
+
+document.getElementById('dropZone').addEventListener('dragover', e => {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = '#818cf8';
+});
+document.getElementById('dropZone').addEventListener('dragleave', () => {
+  document.getElementById('dropZone').style.borderColor = '';
+});
+document.getElementById('dropZone').addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('video/')) uploadFile(file);
+});
+
+async function uploadFile(file) {
+  videoFile = file;
+  document.getElementById('dropZone').style.display = 'none';
+  document.getElementById('uploading').classList.add('on');
+  setStep(1);
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch(API + '/upload-video', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Upload failed');
+
+    document.getElementById('uploading').classList.remove('on');
+    showVideo(file);
+    toast('Uploaded! Scanning for objects...', 'ok');
+    setStep(2);
+    await runDetect();
+  } catch (err) {
+    document.getElementById('dropZone').style.display = '';
+    document.getElementById('uploading').classList.remove('on');
+    toast('Upload failed: ' + err.message, 'err');
+  }
+}
+
+// ── VIDEO DISPLAY ─────────────────────────────────────────────────────
+function showVideo(file) {
+  const v = document.getElementById('vid');
+  v.src = URL.createObjectURL(file);
+  v.style.display = 'block';
+  v.onloadedmetadata = () => {
+    duration = v.duration;
+    editS = 0;
+    editE = Math.min(duration, 10);
+    document.getElementById('tStart').value = editS.toFixed(1);
+    document.getElementById('tEnd').value = editE.toFixed(1);
+    document.getElementById('vidControls').style.display = 'flex';
+    document.getElementById('timeline').style.display = 'block';
+    buildTimelineLabels();
+    syncTimeline();
+    startCanvas();
+  };
+  v.ontimeupdate = () => {
+    if (!v.duration) return;
+    const cur = v.currentTime;
+    document.getElementById('timecode').textContent = fmt(cur) + ' / ' + fmt(v.duration);
+    document.getElementById('tlPh').style.left = (cur / v.duration * 100) + '%';
+  };
+  v.onended = () => { document.getElementById('play-btn').innerHTML = '&#9654;'; };
+}
+
+function togglePlay() {
+  const v = document.getElementById('vid');
+  const btn = document.getElementById('play-btn');
+  if (v.paused) { v.play(); btn.innerHTML = '&#9646;&#9646;'; }
+  else { v.pause(); btn.innerHTML = '&#9654;'; }
+}
+
+function fmt(s) {
+  const m = Math.floor(s / 60);
+  return m + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+}
+
+// ── TIMELINE ──────────────────────────────────────────────────────────
+function buildTimelineLabels() {
+  const el = document.getElementById('tlLabels');
+  el.innerHTML = '';
+  const steps = Math.min(8, Math.floor(duration));
+  for (let i = 0; i <= steps; i++) {
+    const s = document.createElement('span');
+    s.textContent = fmt(Math.round(duration * i / steps));
+    el.appendChild(s);
+  }
+}
+
+function syncTimeline() {
+  if (!duration) return;
+  editS = Math.max(0, parseFloat(document.getElementById('tStart').value) || 0);
+  editE = Math.min(duration, parseFloat(document.getElementById('tEnd').value) || duration);
+  if (editE <= editS) editE = Math.min(duration, editS + 1);
+  const s = (editS / duration) * 100;
+  const e = (editE / duration) * 100;
+  document.getElementById('tlL').style.left = s + '%';
+  document.getElementById('tlR').style.left = e + '%';
+  const rng = document.getElementById('tlRange');
+  rng.style.left = s + '%';
+  rng.style.width = (e - s) + '%';
+}
+
+function tlDown(e) {
+  const tl = document.getElementById('timeline');
+  const track = tl.querySelector('.tl-track');
+  const rect = track.getBoundingClientRect();
+  const lh = document.getElementById('tlL');
+  const rh = document.getElementById('tlR');
+
+  function getHandleDist(handle) {
+    const hr = handle.getBoundingClientRect();
+    return Math.abs(e.clientX - (hr.left + hr.width / 2));
+  }
+
+  if (getHandleDist(lh) < 20 || getHandleDist(rh) < 20) {
+    dragging = getHandleDist(lh) <= getHandleDist(rh) ? 'L' : 'R';
+  }
+
+  function move(ev) {
+    if (!dragging) return;
+    const f = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+    const t = f * duration;
+    if (dragging === 'L') {
+      editS = Math.min(t, editE - 0.5);
+      document.getElementById('tStart').value = editS.toFixed(1);
+    } else {
+      editE = Math.max(t, editS + 0.5);
+      document.getElementById('tEnd').value = editE.toFixed(1);
+    }
+    syncTimeline();
+  }
+
+  function up() {
+    dragging = null;
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+  }
+
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
+// ── CANVAS BBOX OVERLAY ───────────────────────────────────────────────
+function startCanvas() {
+  if (rafId) cancelAnimationFrame(rafId);
+  function loop() { drawBoxes(); rafId = requestAnimationFrame(loop); }
+  rafId = requestAnimationFrame(loop);
+}
+
+function drawBoxes() {
+  const canvas = document.getElementById('bbox-canvas');
+  const v = document.getElementById('vid');
+  if (!v.videoWidth) { canvas.width = 0; canvas.height = 0; return; }
+
+  const vr = v.getBoundingClientRect();
+  const wr = document.getElementById('videoWrap').getBoundingClientRect();
+  const offL = vr.left - wr.left, offT = vr.top - wr.top;
+  const dw = Math.round(vr.width), dh = Math.round(vr.height);
+
+  canvas.style.left = offL + 'px';
+  canvas.style.top = offT + 'px';
+  canvas.style.width = dw + 'px';
+  canvas.style.height = dh + 'px';
+  if (canvas.width !== dw || canvas.height !== dh) { canvas.width = dw; canvas.height = dh; }
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, dw, dh);
+
+  const sx = dw / v.videoWidth, sy = dh / v.videoHeight;
+  objects.forEach((obj, i) => {
+    const [x1, y1, x2, y2] = obj.bbox;
+    const dx = x1 * sx, dy = y1 * sy, bw = (x2 - x1) * sx, bh = (y2 - y1) * sy;
+    const color = COLORS[i % COLORS.length];
+    const isSel = selected === obj;
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = isSel ? 3 : 2;
+    ctx.fillStyle = isSel ? color.replace(')', ',.18)').replace('rgb', 'rgba') : 'transparent';
+
+    // Use rgba fill
+    ctx.globalAlpha = isSel ? 0.25 : 0.1;
+    ctx.fillRect(dx, dy, bw, bh);
+    ctx.globalAlpha = 1;
+    ctx.strokeRect(dx, dy, bw, bh);
+
+    // Label
+    const label = obj.label + ' ' + Math.round(obj.confidence * 100) + '%';
+    ctx.font = 'bold 12px sans-serif';
+    const tw = ctx.measureText(label).width;
+    const ly = Math.max(20, dy - 2);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(dx - 1, ly - 16, tw + 10, 20);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, dx + 4, ly);
+    ctx.restore();
+  });
+}
+
+// ── CLICK ON VIDEO ────────────────────────────────────────────────────
+document.getElementById('videoWrap').addEventListener('click', e => {
+  const v = document.getElementById('vid');
+  if (!v.videoWidth || !objects.length) return;
+  const vr = v.getBoundingClientRect();
+  const cx = e.clientX - vr.left, cy = e.clientY - vr.top;
+  if (cx < 0 || cy < 0 || cx > vr.width || cy > vr.height) return;
+
+  const ox = cx * (v.videoWidth / vr.width);
+  const oy = cy * (v.videoHeight / vr.height);
+
+  let hit = null, minArea = Infinity;
+  for (const obj of objects) {
+    const [x1, y1, x2, y2] = obj.bbox;
+    if (ox >= x1 && ox <= x2 && oy >= y1 && oy <= y2) {
+      const a = (x2 - x1) * (y2 - y1);
+      if (a < minArea) { minArea = a; hit = obj; }
+    }
+  }
+  if (!hit) {
+    // nearest centroid fallback
+    let md = Infinity;
+    for (const obj of objects) {
+      const [x1, y1, x2, y2] = obj.bbox;
+      const d = Math.hypot(ox - (x1 + x2) / 2, oy - (y1 + y2) / 2);
+      if (d < md) { md = d; hit = obj; }
+    }
+    if (md > 200) return;
+  }
+  selectObject(hit);
+});
+
+// ── DETECT ────────────────────────────────────────────────────────────
+async function runDetect() {
+  if (!videoFile) return;
+  const btn = document.getElementById('detectBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spin"></div> Scanning...';
+  document.getElementById('objList').innerHTML = '<div class="obj-none">Scanning for objects...</div>';
+
+  try {
+    const r = await fetch(API + '/detect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: videoFile.name })
+    });
+    const d = await r.json();
+    objects = d.objects || [];
+    renderObjects();
+    if (objects.length) {
+      toast(objects.length + ' object' + (objects.length > 1 ? 's' : '') + ' found — click one to select', 'ok');
+      setStep(3);
+    } else {
+      toast('No objects detected. Try scanning again.', 'inf');
+    }
+  } catch (err) {
+    toast('Detection failed: ' + err.message, 'err');
+    document.getElementById('objList').innerHTML = '<div class="obj-none" style="color:#f87171;">Detection error. Is the server running?</div>';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; Scan for Objects';
+  }
+}
+
+function renderObjects() {
+  const list = document.getElementById('objList');
+  if (!objects.length) {
+    list.innerHTML = '<div class="obj-none">No objects found. Try scanning again.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  objects.forEach((obj, i) => {
+    const el = document.createElement('div');
+    el.className = 'obj-item' + (selected === obj ? ' selected' : '');
+    el.innerHTML = `<div class="obj-dot" style="background:${COLORS[i % COLORS.length]}"></div>
+      <div class="obj-name">${obj.label}</div>
+      <div class="obj-conf">${Math.round(obj.confidence * 100)}%</div>`;
+    el.onclick = () => selectObject(obj);
+    list.appendChild(el);
+  });
+}
+
+function selectObject(obj) {
+  selected = obj;
+  renderObjects();
+
+  document.getElementById('selSec').style.display = '';
+  document.getElementById('selName').textContent = obj.label;
+  document.getElementById('selSub').textContent = Math.round(obj.confidence * 100) + '% confidence · Click on video to re-select';
+
+  document.getElementById('rangeSec').style.display = '';
+  document.getElementById('procSec').style.display = '';
+  setStep(4);
+  toast('Selected: ' + obj.label + '. Adjust the time range, then click Remove.', 'ok');
+}
+
+// ── PROCESS ───────────────────────────────────────────────────────────
+async function process() {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  if (!selected) { toast('Select an object first', 'err'); return; }
+
+  const s = parseFloat(document.getElementById('tStart').value) || 0;
+  const e = parseFloat(document.getElementById('tEnd').value) || 5;
+  if (e <= s) { toast('End time must be after start time', 'err'); return; }
+
+  const btn = document.getElementById('procBtn');
+  btn.disabled = true;
+  btn.classList.add('running');
+  btn.textContent = 'Processing...';
+  document.getElementById('progWrap').classList.add('on');
+  document.getElementById('resultWrap').classList.remove('on');
+  document.getElementById('progBar').style.width = '0%';
+  document.getElementById('progLabel').textContent = 'Starting...';
+
+  try {
+    const r = await fetch(API + '/process-edit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: videoFile.name,
+        start_time: s,
+        end_time: e,
+        bbox: selected.bbox
+      })
+    });
+    const d = await r.json();
+    if (!d.job_id) throw new Error(d.error || 'Failed to start');
+    jobId = d.job_id;
+    pollJob();
+  } catch (err) {
+    btn.disabled = false;
+    btn.classList.remove('running');
+    btn.textContent = '⚡ Remove Object';
+    document.getElementById('progWrap').classList.remove('on');
+    toast('Failed: ' + err.message, 'err');
+  }
+}
+
+const PROG_LABELS = {
+  0: 'Starting...',
+  10: 'Extracting frames...',
+  20: 'Building masks...',
+  30: 'Removing object (AI)...',
+  70: 'Rebuilding video...',
+  80: 'Assembling...',
+  90: 'Adding audio...',
+  100: 'Done!'
+};
+
+function pollJob() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const r = await fetch(API + '/status/' + jobId);
+      const d = await r.json();
+      const pct = d.progress || 0;
+      document.getElementById('progBar').style.width = pct + '%';
+      const key = Object.keys(PROG_LABELS).reverse().find(k => pct >= +k);
+      if (key) document.getElementById('progLabel').textContent = PROG_LABELS[key];
+
+      if (d.status === 'completed') {
+        clearInterval(pollTimer);
+        document.getElementById('progBar').style.width = '100%';
+        document.getElementById('progLabel').textContent = 'Done!';
+        setTimeout(() => {
+          document.getElementById('progWrap').classList.remove('on');
+          document.getElementById('resultWrap').classList.add('on');
+          const btn = document.getElementById('procBtn');
+          btn.disabled = false;
+          btn.classList.remove('running');
+          btn.textContent = '⚡ Remove Object';
+          setStep(5);
+          toast('Object removed! Click Download.', 'ok');
+        }, 600);
+      } else if (d.status === 'failed') {
+        clearInterval(pollTimer);
+        document.getElementById('progWrap').classList.remove('on');
+        const btn = document.getElementById('procBtn');
+        btn.disabled = false;
+        btn.classList.remove('running');
+        btn.textContent = '⚡ Remove Object';
+        toast('Failed: ' + (d.error || 'Unknown error'), 'err');
+      }
+    } catch (e) {}
+  }, 2000);
+}
+
+function download() {
+  if (jobId) window.open(API + '/download/' + jobId, '_blank');
+}
+
+function reset() {
+  if (rafId) cancelAnimationFrame(rafId);
+  if (pollTimer) clearInterval(pollTimer);
+  videoFile = null; selected = null; objects = []; jobId = null; duration = 0;
+  const v = document.getElementById('vid');
+  v.src = ''; v.style.display = 'none';
+  document.getElementById('dropZone').style.display = '';
+  document.getElementById('uploading').classList.remove('on');
+  document.getElementById('vidControls').style.display = 'none';
+  document.getElementById('timeline').style.display = 'none';
+  document.getElementById('objList').innerHTML = '<div class="obj-none">Upload a video to start</div>';
+  document.getElementById('detectBtn').disabled = true;
+  document.getElementById('selSec').style.display = 'none';
+  document.getElementById('rangeSec').style.display = 'none';
+  document.getElementById('procSec').style.display = 'none';
+  document.getElementById('resultWrap').classList.remove('on');
+  document.getElementById('progWrap').classList.remove('on');
+  document.getElementById('fileInput').value = '';
+  const canvas = document.getElementById('bbox-canvas');
+  canvas.width = 0; canvas.height = 0;
+  setStep(1);
+}
+
+setStep(1);
+</script>
+</body>
+</html>
