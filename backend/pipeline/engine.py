@@ -360,3 +360,172 @@ def _add_audio(video_no_audio, original_with_audio, output):
 
 def get_job_status(job_id: str):
     return jobs.get(job_id, {"status": "not found"})
+
+
+# ── Magic Eraser ──────────────────────────────────────────────────────────────
+
+def _combined_mask(frame_path: str, bboxes: list) -> np.ndarray:
+    """Union mask covering every bbox in the list (with standard expansion pad)."""
+    frame = cv2.imread(frame_path)
+    h, w  = frame.shape[:2]
+    combined = np.zeros((h, w), dtype=np.uint8)
+    for bbox in bboxes:
+        x1, y1, x2, y2 = [int(v) for v in bbox]
+        pad = max(20, int(min(x2 - x1, y2 - y1) * 0.17))
+        x1 = max(0, x1 - pad); y1 = max(0, y1 - pad)
+        x2 = min(w, x2 + pad); y2 = min(h, y2 + pad)
+        combined[y1:y2, x1:x2] = 255
+    return combined
+
+
+def run_magic_erase(video_path: str, command: dict, job_id: str = None):
+    """
+    Remove multiple user-selected objects from a video segment.
+    command keys: bboxes [[x1,y1,x2,y2],...], start_time, end_time
+    Each object is tracked frame-by-frame with YOLO; all masks are merged
+    into one combined mask before inpainting so a single fill pass covers
+    every selected object.
+    """
+    if job_id is None:
+        job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    log.info("=== MAGIC ERASE JOB %s START ===", job_id)
+
+    try:
+        hint_bboxes = command.get("bboxes") or []
+        if not hint_bboxes:
+            raise ValueError("No objects selected")
+
+        orig_fps, duration, rotation = _video_info(video_path)
+        start_sec = float(command.get("start_time") or 0)
+        end_sec   = min(float(command.get("end_time") or duration), duration)
+        if start_sec >= end_sec:
+            raise ValueError(f"Invalid range: {start_sec}–{end_sec}s")
+
+        base       = _STORAGE
+        frames_dir = os.path.join(base, job_id, "frames")
+        edited_dir = os.path.join(base, job_id, "edited")
+        out_dir    = os.path.join(base, job_id, "output")
+        os.makedirs(out_dir, exist_ok=True)
+
+        # ── STEP 1: Extract frames ────────────────────────────────────────
+        jobs[job_id]["progress"] = 8
+        frame_paths = extract_frames(video_path, frames_dir, fps=EXTRACT_FPS,
+                                     start_sec=start_sec, end_sec=end_sec)
+        if not frame_paths:
+            raise RuntimeError(f"No frames extracted from {start_sec}s to {end_sec}s")
+        log.info("  extracted %d frames", len(frame_paths))
+
+        # ── STEP 2: Track each selected object independently ──────────────
+        jobs[job_id]["progress"] = 15
+        from ultralytics import YOLO
+        yolo = YOLO(_YOLO_PT)
+        per_object_tracks = []          # [obj_idx][frame_idx] = bbox
+        for hint in hint_bboxes:
+            track = []
+            for fp in frame_paths:
+                detected = _detect_in_frame(fp, hint, yolo)
+                track.append(detected or hint)
+            per_object_tracks.append(track)
+            log.info("  tracked hint=%s across %d frames", hint, len(frame_paths))
+        del yolo
+
+        # ── STEP 3: Combined mask per frame (all objects unioned) ─────────
+        jobs[job_id]["progress"] = 25
+        masks = []
+        for fi, fp in enumerate(frame_paths):
+            bboxes_this_frame = [per_object_tracks[oi][fi]
+                                 for oi in range(len(hint_bboxes))]
+            masks.append(_combined_mask(fp, bboxes_this_frame))
+
+        # ── STEP 4: Inpainting ────────────────────────────────────────────
+        jobs[job_id]["progress"] = 30
+        os.makedirs(edited_dir, exist_ok=True)
+        edited_paths = []
+        for i, (fp, mask) in enumerate(zip(frame_paths, masks)):
+            out_path = os.path.join(edited_dir, f"edited_{i:04d}.jpg")
+            _lama_inpaint(fp, mask, out_path)
+            edited_paths.append(out_path)
+            jobs[job_id]["progress"] = 30 + int((i + 1) / len(frame_paths) * 45)
+            log.info("  frame %d/%d done", i + 1, len(frame_paths))
+
+        # ── STEP 5: Encode edited segment ────────────────────────────────
+        jobs[job_id]["progress"] = 76
+        tmp_dir = tempfile.mkdtemp(prefix="frameai_")
+        seg_b   = os.path.join(tmp_dir, "seg_b.mp4")
+        _ffmpeg(
+            "-framerate", str(EXTRACT_FPS),
+            "-i", os.path.join(edited_dir, "edited_%04d.jpg"),
+            "-vf", f"fps={orig_fps:.3f},scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+            seg_b, label="encode_magic"
+        )
+
+        # ── STEP 6: Assemble + audio ──────────────────────────────────────
+        jobs[job_id]["progress"] = 87
+        no_audio = os.path.join(tmp_dir, "no_audio.mp4")
+        _assemble(video_path, seg_b, no_audio, start_sec, end_sec, duration, tmp_dir, rotation)
+
+        jobs[job_id]["progress"] = 95
+        final = os.path.join(out_dir, "final.mp4")
+        _add_audio(no_audio, video_path, final)
+
+        jobs[job_id].update({"status": "completed", "output": final, "progress": 100})
+        log.info("=== MAGIC ERASE JOB %s DONE → %s ===", job_id, final)
+
+    except Exception as exc:
+        import traceback
+        tb = traceback.format_exc()
+        log.error("=== MAGIC ERASE JOB %s FAILED ===\n%s", job_id, tb)
+        jobs[job_id].update({"status": "failed", "error": str(exc), "trace": tb})
+
+    return job_id
+
+
+# ── Audio mute ────────────────────────────────────────────────────────────────
+
+def run_mute_audio(video_path: str, segments: list, job_id: str = None):
+    """
+    Silence specific time segments in a video.
+    segments: [{"start": float, "end": float}, ...]
+    Uses FFmpeg volume filter — video stream is stream-copied (no re-encode).
+    """
+    if job_id is None:
+        job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    log.info("=== MUTE AUDIO JOB %s START  segments=%s ===", job_id, segments)
+
+    try:
+        if not segments:
+            raise ValueError("No segments provided")
+
+        out_dir = os.path.join(_STORAGE, job_id, "output")
+        os.makedirs(out_dir, exist_ok=True)
+        final = os.path.join(out_dir, "final.mp4")
+
+        jobs[job_id]["progress"] = 30
+
+        # Build FFmpeg volume-filter expression:
+        # volume=enable='between(t,5,12)+between(t,20,25)':volume=0
+        conditions = "+".join(
+            f"between(t,{float(s['start']):.3f},{float(s['end']):.3f})"
+            for s in segments
+        )
+        _ffmpeg(
+            "-i", video_path,
+            "-af", f"volume=enable='{conditions}':volume=0",
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "192k",
+            final, label="mute_audio"
+        )
+
+        jobs[job_id].update({"status": "completed", "output": final, "progress": 100})
+        log.info("=== MUTE AUDIO JOB %s DONE → %s ===", job_id, final)
+
+    except Exception as exc:
+        import traceback
+        tb = traceback.format_exc()
+        log.error("=== MUTE AUDIO JOB %s FAILED ===\n%s", job_id, tb)
+        jobs[job_id].update({"status": "failed", "error": str(exc), "trace": tb})
+
+    return job_id

@@ -114,6 +114,48 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* UPLOAD PROGRESS */
 .uploading{display:none;flex-direction:column;align-items:center;gap:10px;}
 .uploading.on{display:flex;}
+
+/* PANEL TABS */
+.panel-tabs{display:flex;border-bottom:1px solid #2a2a38;flex-shrink:0;}
+.ptab{flex:1;padding:10px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#6b7280;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
+.ptab:hover{color:#9ca3af;}
+.ptab.active{color:#818cf8;border-bottom-color:#818cf8;}
+
+/* ERASER TAB */
+.eraser-hint{font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:12px;}
+.eraser-hint span{color:#818cf8;font-weight:700;}
+.erase-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid #2a2a38;background:#0f0f13;margin-bottom:5px;}
+.erase-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.erase-name{flex:1;font-size:12px;font-weight:600;color:#e8eaf0;}
+.erase-conf{font-size:11px;color:#34d399;font-family:monospace;margin-right:4px;}
+.erase-del{background:none;border:none;color:#4b5563;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;}
+.erase-del:hover{color:#f87171;}
+.erase-none{font-size:12px;color:#4b5563;text-align:center;padding:16px 0;}
+.erase-btn{width:100%;padding:13px;background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;position:relative;overflow:hidden;}
+.erase-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(239,68,68,.4);}
+.erase-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.erase-btn.running::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);animation:sweep 1.2s infinite;}
+
+/* AUDIO TAB */
+.audio-hint{font-size:12px;color:#6b7280;line-height:1.6;margin-bottom:12px;}
+.seg-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid #2a2a38;background:#0f0f13;margin-bottom:5px;}
+.seg-time{flex:1;font-size:12px;font-family:monospace;color:#38bdf8;}
+.seg-del{background:none;border:none;color:#4b5563;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;}
+.seg-del:hover{color:#f87171;}
+.seg-none{font-size:12px;color:#4b5563;text-align:center;padding:16px 0;}
+.seg-add-row{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-top:8px;align-items:end;}
+.seg-add-row .tf label{font-size:10px;color:#6b7280;display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;}
+.seg-add-row .tf input{width:100%;background:#0f0f13;border:1px solid #2a2a38;border-radius:6px;padding:7px 8px;color:#e8eaf0;font-family:monospace;font-size:12px;}
+.seg-add-row .tf input:focus{outline:none;border-color:#818cf8;}
+.add-seg-btn{padding:7px 10px;background:#2a2a38;border:1px solid #3a3a50;border-radius:6px;color:#9ca3af;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s;}
+.add-seg-btn:hover{background:#3a3a50;color:#e8eaf0;}
+.mute-btn{width:100%;padding:13px;background:linear-gradient(135deg,#3b82f6,#6366f1);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;position:relative;overflow:hidden;margin-top:4px;}
+.mute-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,.4);}
+.mute-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.mute-btn.running::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);animation:sweep 1.2s infinite;}
+
+/* video cursor in eraser mode */
+.video-wrap.eraser-mode{cursor:crosshair;}
 </style>
 </head>
 <body>
@@ -168,44 +210,118 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <!-- PANEL -->
   <div class="panel">
 
-    <!-- OBJECTS -->
-    <div class="panel-sec">
-      <div class="panel-label">Detected Objects</div>
-      <div id="objList"><div class="obj-none">Upload a video to start</div></div>
-      <button class="detect-btn" id="detectBtn" onclick="runDetect()" disabled>&#8635; Scan for Objects</button>
+    <!-- TAB BAR -->
+    <div class="panel-tabs">
+      <button class="ptab active" id="tab-remove" onclick="switchTab('remove')">&#9888; Remove</button>
+      <button class="ptab" id="tab-eraser" onclick="switchTab('eraser')">&#10024; Eraser</button>
+      <button class="ptab" id="tab-audio" onclick="switchTab('audio')">&#127925; Audio</button>
     </div>
 
-    <!-- SELECTED -->
-    <div class="panel-sec" id="selSec" style="display:none;">
-      <div class="panel-label">Selected Object</div>
-      <div class="sel-box">
-        <div class="sel-name" id="selName">—</div>
-        <div class="sel-sub" id="selSub">Click an object above or on the video</div>
-      </div>
-    </div>
+    <!-- ══ REMOVE TAB (existing flow) ══ -->
+    <div id="content-remove">
 
-    <!-- TIME RANGE -->
-    <div class="panel-sec" id="rangeSec" style="display:none;">
-      <div class="panel-label">Remove from (seconds)</div>
-      <div class="time-row">
-        <div class="tf"><label>Start</label><input type="number" id="tStart" value="0" min="0" step="0.1" oninput="syncTimeline()"></div>
-        <div class="tf"><label>End</label><input type="number" id="tEnd" value="5" min="0" step="0.1" oninput="syncTimeline()"></div>
+      <!-- OBJECTS -->
+      <div class="panel-sec">
+        <div class="panel-label">Detected Objects</div>
+        <div id="objList"><div class="obj-none">Upload a video to start</div></div>
+        <button class="detect-btn" id="detectBtn" onclick="runDetect()" disabled>&#8635; Scan for Objects</button>
       </div>
-    </div>
 
-    <!-- PROCESS -->
-    <div class="panel-sec" id="procSec" style="display:none;">
-      <button class="proc-btn" id="procBtn" onclick="process()">&#9889; Remove Object</button>
-      <div style="height:12px;"></div>
-      <div class="progress-wrap" id="progWrap">
-        <div class="prog-bar-bg"><div class="prog-bar" id="progBar"></div></div>
-        <div class="prog-label" id="progLabel">Starting...</div>
+      <!-- SELECTED -->
+      <div class="panel-sec" id="selSec" style="display:none;">
+        <div class="panel-label">Selected Object</div>
+        <div class="sel-box">
+          <div class="sel-name" id="selName">—</div>
+          <div class="sel-sub" id="selSub">Click an object above or on the video</div>
+        </div>
       </div>
-      <div class="result-wrap" id="resultWrap">
-        <button class="dl-btn" onclick="download()">&#11015; Download Edited Video</button>
-        <button class="new-btn" onclick="reset()">+ New Video</button>
+
+      <!-- TIME RANGE -->
+      <div class="panel-sec" id="rangeSec" style="display:none;">
+        <div class="panel-label">Remove from (seconds)</div>
+        <div class="time-row">
+          <div class="tf"><label>Start</label><input type="number" id="tStart" value="0" min="0" step="0.1" oninput="syncTimeline()"></div>
+          <div class="tf"><label>End</label><input type="number" id="tEnd" value="5" min="0" step="0.1" oninput="syncTimeline()"></div>
+        </div>
       </div>
-    </div>
+
+      <!-- PROCESS -->
+      <div class="panel-sec" id="procSec" style="display:none;">
+        <button class="proc-btn" id="procBtn" onclick="process()">&#9889; Remove Object</button>
+        <div style="height:12px;"></div>
+        <div class="progress-wrap" id="progWrap">
+          <div class="prog-bar-bg"><div class="prog-bar" id="progBar"></div></div>
+          <div class="prog-label" id="progLabel">Starting...</div>
+        </div>
+        <div class="result-wrap" id="resultWrap">
+          <button class="dl-btn" onclick="download()">&#11015; Download Edited Video</button>
+          <button class="new-btn" onclick="reset()">+ New Video</button>
+        </div>
+      </div>
+
+    </div><!-- end #content-remove -->
+
+    <!-- ══ ERASER TAB (Magic Eraser) ══ -->
+    <div id="content-eraser" style="display:none;">
+
+      <div class="panel-sec">
+        <div class="panel-label">Magic Eraser</div>
+        <div class="eraser-hint"><span>Click objects</span> in the video to mark them for removal. Select one or more, set the time range, then erase.</div>
+        <div id="eraseList"><div class="erase-none">Upload a video, then click objects to select</div></div>
+        <button class="detect-btn" style="margin-top:8px;" id="eraseClearBtn" onclick="eraseClear()" disabled>&#10006; Clear Selection</button>
+      </div>
+
+      <div class="panel-sec" id="eraseRangeSec" style="display:none;">
+        <div class="panel-label">Erase from (seconds)</div>
+        <div class="time-row">
+          <div class="tf"><label>Start</label><input type="number" id="eStart" value="0" min="0" step="0.1"></div>
+          <div class="tf"><label>End</label><input type="number" id="eEnd" value="5" min="0" step="0.1"></div>
+        </div>
+      </div>
+
+      <div class="panel-sec" id="eraseActionSec" style="display:none;">
+        <button class="erase-btn" id="eraseBtn" onclick="runMagicErase()">&#10024; Erase Selected Objects</button>
+        <div style="height:12px;"></div>
+        <div class="progress-wrap" id="eraseProgWrap">
+          <div class="prog-bar-bg"><div class="prog-bar" id="eraseProgBar"></div></div>
+          <div class="prog-label" id="eraseProgLabel">Starting...</div>
+        </div>
+        <div class="result-wrap" id="eraseResultWrap">
+          <button class="dl-btn" onclick="downloadEraser()">&#11015; Download Erased Video</button>
+          <button class="new-btn" onclick="reset()">+ New Video</button>
+        </div>
+      </div>
+
+    </div><!-- end #content-eraser -->
+
+    <!-- ══ AUDIO TAB ══ -->
+    <div id="content-audio" style="display:none;">
+
+      <div class="panel-sec">
+        <div class="panel-label">Mute Audio Segments</div>
+        <div class="audio-hint">Add time segments to silence. Audio outside these ranges is kept intact.</div>
+        <div id="segList"><div class="seg-none">No segments added yet</div></div>
+        <div class="seg-add-row">
+          <div class="tf"><label>Start (s)</label><input type="number" id="segStart" value="0" min="0" step="0.1" placeholder="0"></div>
+          <div class="tf"><label>End (s)</label><input type="number" id="segEnd" value="5" min="0" step="0.1" placeholder="5"></div>
+          <button class="add-seg-btn" onclick="addSegment()">+ Add</button>
+        </div>
+      </div>
+
+      <div class="panel-sec" id="audioActionSec" style="display:none;">
+        <button class="mute-btn" id="muteBtn" onclick="runMuteAudio()">&#127925; Remove Audio Segments</button>
+        <div style="height:12px;"></div>
+        <div class="progress-wrap" id="muteProgWrap">
+          <div class="prog-bar-bg"><div class="prog-bar" id="muteProgBar"></div></div>
+          <div class="prog-label" id="muteProgLabel">Processing...</div>
+        </div>
+        <div class="result-wrap" id="muteResultWrap">
+          <button class="dl-btn" onclick="downloadMute()">&#11015; Download Muted Video</button>
+          <button class="new-btn" onclick="reset()">+ New Video</button>
+        </div>
+      </div>
+
+    </div><!-- end #content-audio -->
 
   </div>
 </div>
@@ -667,6 +783,294 @@ function reset() {
 }
 
 setStep(1);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════════════════════════
+let activeTab = 'remove';
+function switchTab(tab) {
+  activeTab = tab;
+  ['remove','eraser','audio'].forEach(t => {
+    document.getElementById('content-' + t).style.display = t === tab ? '' : 'none';
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+  });
+  const wrap = document.getElementById('videoWrap');
+  wrap.classList.toggle('eraser-mode', tab === 'eraser');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MAGIC ERASER
+// ══════════════════════════════════════════════════════════════════════════════
+let eraserSelections = [];   // [{label, bbox, conf, color}]
+
+// Override the videoWrap click to also handle eraser mode
+document.getElementById('videoWrap').addEventListener('click', e => {
+  if (activeTab === 'eraser') { onEraserClick(e); return; }
+  // existing remove-tab click handling already wired via the original listener
+}, true);  // capture phase so this fires before the bubble listener
+
+function onEraserClick(e) {
+  const v = document.getElementById('vid');
+  if (!v.videoWidth) { toast('Upload a video first', 'err'); return; }
+  if (!videoFile)    { toast('Upload a video first', 'err'); return; }
+
+  const vr = v.getBoundingClientRect();
+  const cx = e.clientX - vr.left;
+  const cy = e.clientY - vr.top;
+  if (cx < 0 || cy < 0 || cx > vr.width || cy > vr.height) return;
+
+  // Map display coords → native video pixels
+  const ox = cx * (v.videoWidth  / vr.width);
+  const oy = cy * (v.videoHeight / vr.height);
+
+  // Need detections; auto-detect if not yet done
+  if (!objects.length) {
+    toast('Scanning for objects…', 'inf');
+    runDetect().then(() => {
+      if (objects.length) findAndAddEraserObject(ox, oy);
+      else toast('No objects detected in this video', 'err');
+    });
+    return;
+  }
+  findAndAddEraserObject(ox, oy);
+}
+
+function findAndAddEraserObject(ox, oy) {
+  let hit = null, minArea = Infinity;
+  for (const obj of objects) {
+    const [x1,y1,x2,y2] = obj.bbox;
+    if (ox>=x1 && ox<=x2 && oy>=y1 && oy<=y2) {
+      const a = (x2-x1)*(y2-y1);
+      if (a < minArea) { minArea = a; hit = obj; }
+    }
+  }
+  if (!hit) {
+    let md = Infinity;
+    for (const obj of objects) {
+      const [x1,y1,x2,y2] = obj.bbox;
+      const d = Math.hypot(ox-(x1+x2)/2, oy-(y1+y2)/2);
+      if (d < md) { md = d; hit = obj; }
+    }
+    if (!hit || md > 250) { toast('No object detected here — try clicking directly on an object', 'inf'); return; }
+  }
+
+  // Check not already selected
+  if (eraserSelections.some(s => s.bbox.join() === hit.bbox.join())) {
+    toast(hit.label + ' already selected', 'inf'); return;
+  }
+
+  const color = COLORS[eraserSelections.length % COLORS.length];
+  eraserSelections.push({ label: hit.label, bbox: hit.bbox, conf: hit.confidence, color });
+  renderEraserList();
+  toast('Selected: ' + hit.label, 'ok');
+}
+
+function renderEraserList() {
+  const list = document.getElementById('eraseList');
+  const clearBtn = document.getElementById('eraseClearBtn');
+  if (!eraserSelections.length) {
+    list.innerHTML = '<div class="erase-none">Click objects in the video to select them</div>';
+    clearBtn.disabled = true;
+    document.getElementById('eraseRangeSec').style.display = 'none';
+    document.getElementById('eraseActionSec').style.display = 'none';
+    return;
+  }
+  list.innerHTML = eraserSelections.map((s, i) =>
+    `<div class="erase-item">
+       <div class="erase-dot" style="background:${s.color}"></div>
+       <div class="erase-name">${s.label}</div>
+       <div class="erase-conf">${Math.round(s.conf*100)}%</div>
+       <button class="erase-del" onclick="eraseRemoveOne(${i})" title="Remove">&#215;</button>
+     </div>`
+  ).join('');
+  clearBtn.disabled = false;
+  // Show range + action sections only when video is loaded
+  if (videoFile) {
+    document.getElementById('eraseRangeSec').style.display = '';
+    document.getElementById('eraseActionSec').style.display = '';
+    document.getElementById('eraseResultWrap').classList.remove('on');
+    document.getElementById('eraseProgWrap').classList.remove('on');
+    const btn = document.getElementById('eraseBtn');
+    btn.disabled = false; btn.classList.remove('running');
+    btn.textContent = '✨ Erase Selected Objects';
+  }
+}
+
+function eraseRemoveOne(i) {
+  eraserSelections.splice(i, 1);
+  renderEraserList();
+}
+
+function eraseClear() {
+  eraserSelections = [];
+  renderEraserList();
+}
+
+async function runMagicErase() {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  if (!eraserSelections.length) { toast('Select at least one object', 'err'); return; }
+
+  const s = parseFloat(document.getElementById('eStart').value) || 0;
+  const e = parseFloat(document.getElementById('eEnd').value) || duration;
+  if (e <= s) { toast('End must be after start', 'err'); return; }
+
+  const btn = document.getElementById('eraseBtn');
+  btn.disabled = true; btn.classList.add('running'); btn.textContent = 'Processing…';
+  document.getElementById('eraseProgWrap').classList.add('on');
+  document.getElementById('eraseResultWrap').classList.remove('on');
+  document.getElementById('eraseProgBar').style.width = '0%';
+  document.getElementById('eraseProgLabel').textContent = 'Starting…';
+
+  try {
+    const r = await fetch(API + '/magic-erase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: videoFile.name,
+        bboxes: eraserSelections.map(s => s.bbox),
+        start_time: s,
+        end_time: e
+      })
+    });
+    const d = await r.json();
+    if (!d.job_id) throw new Error(d.error || 'Failed to start');
+    pollJob(d.job_id, 'eraseProgBar', 'eraseProgLabel', 'eraseProgWrap', 'eraseResultWrap', btn, '✨ Erase Selected Objects');
+  } catch (err) {
+    btn.disabled = false; btn.classList.remove('running'); btn.textContent = '✨ Erase Selected Objects';
+    document.getElementById('eraseProgWrap').classList.remove('on');
+    toast('Failed: ' + err.message, 'err');
+  }
+}
+
+function downloadEraser() {
+  if (eraserJobId) window.open(API + '/download/' + eraserJobId, '_blank');
+}
+let eraserJobId = null;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUDIO MUTE
+// ══════════════════════════════════════════════════════════════════════════════
+let audioSegments = [];   // [{start, end}]
+let muteJobId = null;
+
+function addSegment() {
+  const s = parseFloat(document.getElementById('segStart').value);
+  const e = parseFloat(document.getElementById('segEnd').value);
+  if (isNaN(s) || isNaN(e) || e <= s) { toast('End must be greater than start', 'err'); return; }
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  audioSegments.push({ start: s, end: e });
+  renderSegList();
+}
+
+function renderSegList() {
+  const list = document.getElementById('segList');
+  if (!audioSegments.length) {
+    list.innerHTML = '<div class="seg-none">No segments added yet</div>';
+    document.getElementById('audioActionSec').style.display = 'none';
+    return;
+  }
+  list.innerHTML = audioSegments.map((seg, i) =>
+    `<div class="seg-item">
+       <div class="seg-time">${fmtSeg(seg.start)} → ${fmtSeg(seg.end)}</div>
+       <button class="seg-del" onclick="removeSeg(${i})" title="Remove">&#215;</button>
+     </div>`
+  ).join('');
+  document.getElementById('audioActionSec').style.display = '';
+  document.getElementById('muteResultWrap').classList.remove('on');
+  document.getElementById('muteProgWrap').classList.remove('on');
+  const btn = document.getElementById('muteBtn');
+  btn.disabled = false; btn.classList.remove('running');
+  btn.textContent = '\u{1F3B5} Remove Audio Segments';
+}
+
+function fmtSeg(s) {
+  const m = Math.floor(s / 60);
+  return m + ':' + String(Math.floor(s % 60)).padStart(2,'0') + '.' + String(Math.round((s%1)*10)).padStart(1,'0');
+}
+
+function removeSeg(i) {
+  audioSegments.splice(i, 1);
+  renderSegList();
+}
+
+async function runMuteAudio() {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  if (!audioSegments.length) { toast('Add at least one segment', 'err'); return; }
+
+  const btn = document.getElementById('muteBtn');
+  btn.disabled = true; btn.classList.add('running'); btn.textContent = 'Processing…';
+  document.getElementById('muteProgWrap').classList.add('on');
+  document.getElementById('muteResultWrap').classList.remove('on');
+  document.getElementById('muteProgBar').style.width = '0%';
+  document.getElementById('muteProgLabel').textContent = 'Processing…';
+
+  try {
+    const r = await fetch(API + '/mute-audio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: videoFile.name, segments: audioSegments })
+    });
+    const d = await r.json();
+    if (!d.job_id) throw new Error(d.error || 'Failed to start');
+    muteJobId = d.job_id;
+    pollJob(d.job_id, 'muteProgBar', 'muteProgLabel', 'muteProgWrap', 'muteResultWrap', btn, '\u{1F3B5} Remove Audio Segments');
+  } catch (err) {
+    btn.disabled = false; btn.classList.remove('running'); btn.textContent = '\u{1F3B5} Remove Audio Segments';
+    document.getElementById('muteProgWrap').classList.remove('on');
+    toast('Failed: ' + err.message, 'err');
+  }
+}
+
+function downloadMute() {
+  if (muteJobId) window.open(API + '/download/' + muteJobId, '_blank');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GENERIC JOB POLLER (shared by eraser + audio)
+// ══════════════════════════════════════════════════════════════════════════════
+function pollJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
+  // Store job id per feature
+  if (barId.startsWith('erase')) eraserJobId = jid;
+  if (barId.startsWith('mute'))  muteJobId   = jid;
+
+  const timer = setInterval(async () => {
+    try {
+      const r = await fetch(API + '/status/' + jid);
+      const d = await r.json();
+      const pct = d.progress || 0;
+      document.getElementById(barId).style.width = pct + '%';
+      const key = Object.keys(PROG_LABELS).reverse().find(k => pct >= +k);
+      if (key) document.getElementById(labelId).textContent = PROG_LABELS[key];
+
+      if (d.status === 'completed') {
+        clearInterval(timer);
+        document.getElementById(barId).style.width = '100%';
+        document.getElementById(labelId).textContent = 'Done!';
+        setTimeout(() => {
+          document.getElementById(wrapId).classList.remove('on');
+          document.getElementById(resultId).classList.add('on');
+          btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel;
+          toast('Done! Click Download.', 'ok');
+        }, 600);
+      } else if (d.status === 'failed') {
+        clearInterval(timer);
+        document.getElementById(wrapId).classList.remove('on');
+        btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel;
+        toast('Failed: ' + (d.error || 'Unknown error'), 'err');
+      }
+    } catch (_) {}
+  }, 2000);
+}
+
+// Also init eraser list when a file loads
+const _origShowVideo = showVideo;
+function showVideo(file) {
+  _origShowVideo(file);
+  // Populate time defaults for eraser tab once duration is known
+  document.getElementById('vid').addEventListener('loadedmetadata', () => {
+    document.getElementById('eEnd').value = duration.toFixed(1);
+  }, { once: true });
+}
 </script>
 </body>
 </html>

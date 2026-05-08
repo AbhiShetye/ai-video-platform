@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from pipeline.engine import run_pipeline, get_job_status, jobs
+from pipeline.engine import run_pipeline, run_magic_erase, run_mute_audio, get_job_status, jobs
 from routes.ai_studio import router as ai_studio_router
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -85,6 +85,47 @@ def process_edit(req: EditRequest):
     threading.Thread(target=run_pipeline, args=(path, cmd, job_id), daemon=True).start()
     return {"job_id": job_id, "status": "processing"}
 
+
+
+class MagicEraseRequest(BaseModel):
+    filename: str
+    bboxes: list          # [[x1,y1,x2,y2], ...] — one per selected object
+    start_time: float = 0
+    end_time: float = None
+
+@app.post("/magic-erase")
+def magic_erase(req: MagicEraseRequest):
+    safe_name = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe_name)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    if not req.bboxes:
+        return {"error": "No objects selected"}
+
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    cmd = {"bboxes": req.bboxes, "start_time": req.start_time, "end_time": req.end_time}
+    threading.Thread(target=run_magic_erase, args=(path, cmd, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+class MuteRequest(BaseModel):
+    filename: str
+    segments: list        # [{"start": float, "end": float}, ...]
+
+@app.post("/mute-audio")
+def mute_audio(req: MuteRequest):
+    safe_name = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe_name)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    if not req.segments:
+        return {"error": "No segments provided"}
+
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_mute_audio, args=(path, req.segments, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
 
 
 @app.get("/status/{job_id}")
