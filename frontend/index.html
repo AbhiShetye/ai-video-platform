@@ -416,6 +416,7 @@ function showVideo(file) {
     editE = Math.min(duration, 10);
     document.getElementById('tStart').value = editS.toFixed(1);
     document.getElementById('tEnd').value = editE.toFixed(1);
+    document.getElementById('eEnd').value = duration.toFixed(1);
     document.getElementById('vidControls').style.display = 'flex';
     document.getElementById('timeline').style.display = 'block';
     buildTimelineLabels();
@@ -1062,15 +1063,6 @@ function pollJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
   }, 2000);
 }
 
-// Also init eraser list when a file loads
-const _origShowVideo = showVideo;
-function showVideo(file) {
-  _origShowVideo(file);
-  // Populate time defaults for eraser tab once duration is known
-  document.getElementById('vid').addEventListener('loadedmetadata', () => {
-    document.getElementById('eEnd').value = duration.toFixed(1);
-  }, { once: true });
-}
 </script>
 </body>
 </html>
