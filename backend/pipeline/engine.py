@@ -106,46 +106,99 @@ _lama_lock = threading.Lock()
 
 
 def _lama_inpaint(frame_path: str, mask: np.ndarray, output_path: str):
-    from simple_lama_inpainting import SimpleLama
-    from PIL import Image
-    global _lama_model
-    if _lama_model is None:
-        with _lama_lock:
-            if _lama_model is None:
-                _lama_model = SimpleLama()
+    frame   = cv2.imread(frame_path)
+    h, w    = frame.shape[:2]
+    mask_u8 = (mask > 127).astype(np.uint8) * 255
 
-    frame = cv2.imread(frame_path)
-    h, w  = frame.shape[:2]
+    # Classify background: neutral pixels (wall/ceiling/floor) have low HSV
+    # saturation and mid-high value.  Measure how many such pixels surround
+    # the object relative to the object area — high ratio = smooth background.
+    hsv       = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    neutral   = (hsv[:, :, 1] < 40) & (hsv[:, :, 2] > 100)
+    sample_px = (neutral & (mask_u8 == 0)).astype(np.float32)
+    coverage  = float(sample_px.sum()) / max(float((mask_u8 > 0).sum()), 1)
 
-    # Full resolution — portrait phone videos are 576px wide, LaMa handles it fine
-    scale = min(1.0, 1024 / max(w, h))
-    nw, nh = int(w*scale)&~1, int(h*scale)&~1
-    fr_s = cv2.resize(frame, (nw,nh), interpolation=cv2.INTER_AREA)
-    mk_s = cv2.resize(mask,  (nw,nh), interpolation=cv2.INTER_NEAREST)
+    if coverage >= 0.3:
+        # ── FAST PATH: smooth/neutral background (wall, ceiling, floor) ──────
+        # Run the large-sigma Gaussian at 1/4 resolution (identical quality,
+        # ~50× faster than full-res because kernel cost scales with image area).
+        DS = 4
+        sh, sw   = max(1, h // DS), max(1, w // DS)
+        frame_s  = cv2.resize(frame,     (sw, sh), interpolation=cv2.INTER_AREA)
+        samp_s   = cv2.resize(sample_px, (sw, sh), interpolation=cv2.INTER_AREA)
 
-    img_pil  = Image.fromarray(cv2.cvtColor(fr_s, cv2.COLOR_BGR2RGB))
-    mask_pil = Image.fromarray(mk_s)
-    result_pil = _lama_model(img_pil, mask_pil)
+        gauss_s = np.zeros((sh, sw, 3), np.float32)
+        for c in range(3):
+            ch      = frame_s[:, :, c].astype(np.float32) * samp_s
+            # Near scale (captures local gradient near the mask edge)
+            bv_n = cv2.GaussianBlur(ch,     (0, 0), 60 / DS)
+            bw_n = cv2.GaussianBlur(samp_s, (0, 0), 60 / DS)
+            near = bv_n / (bw_n + 1e-6)
+            # Far scale (covers pixels deep inside large masks)
+            bv_f = cv2.GaussianBlur(ch,     (0, 0), 150 / DS)
+            bw_f = cv2.GaussianBlur(samp_s, (0, 0), 150 / DS)
+            far  = bv_f / (bw_f + 1e-6)
+            t = np.clip(bw_n * 4, 0, 1)
+            gauss_s[:, :, c] = near * t + far * (1.0 - t)
 
-    lama_full = cv2.resize(
-        cv2.cvtColor(np.array(result_pil), cv2.COLOR_RGB2BGR),
-        (w, h), interpolation=cv2.INTER_LANCZOS4
-    )
+        # Upsample fill back to original resolution
+        gauss = cv2.resize(gauss_s, (w, h), interpolation=cv2.INTER_LINEAR)
 
-    # Composite: paste LaMa fill onto original frame using the mask.
-    # Feather only the outer 4px of the mask edge so the boundary blends
-    # smoothly without pulling any original-object colors back in.
+        # Add camera grain that matches the texture variance of the real wall
+        ring_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41))
+        ring   = (cv2.dilate(mask_u8, ring_k) > 0) & (mask_u8 == 0) & neutral
+        for c in range(3):
+            std   = min(float(frame[:, :, c][ring].std()) if ring.any() else 2.0, 3.0)
+            noise = np.random.normal(0, std * 0.65, (h, w)).astype(np.float32)
+            gauss[:, :, c][mask_u8 > 0] = np.clip(
+                gauss[:, :, c][mask_u8 > 0] + noise[mask_u8 > 0], 0, 255
+            )
+        fill = gauss
+
+    else:
+        # ── DEEP PATH: complex/textured background — use LaMa ────────────────
+        from simple_lama_inpainting import SimpleLama
+        from PIL import Image
+        global _lama_model
+        if _lama_model is None:
+            with _lama_lock:
+                if _lama_model is None:
+                    _lama_model = SimpleLama()
+
+        scale = min(1.0, 1024 / max(w, h))
+        nw, nh = int(w * scale) & ~1, int(h * scale) & ~1
+        fr_s   = cv2.resize(frame,   (nw, nh), interpolation=cv2.INTER_AREA)
+        mk_s   = cv2.resize(mask_u8, (nw, nh), interpolation=cv2.INTER_NEAREST)
+        result_pil = _lama_model(
+            Image.fromarray(cv2.cvtColor(fr_s, cv2.COLOR_BGR2RGB)),
+            Image.fromarray(mk_s)
+        )
+        lama_full = cv2.resize(
+            cv2.cvtColor(np.array(result_pil), cv2.COLOR_RGB2BGR),
+            (w, h), interpolation=cv2.INTER_LANCZOS4
+        ).astype(np.float32)
+
+        # Color-correct LaMa fill to match the real boundary
+        dilate_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41))
+        boundary = (cv2.dilate(mask_u8, dilate_k) > 0) & (mask_u8 == 0)
+        if boundary.any() and mask_u8.any():
+            for c in range(3):
+                wall_mean = float(frame[:, :, c][boundary].mean())
+                fill_mean = float(lama_full[:, :, c][mask_u8 > 0].mean())
+                lama_full[:, :, c][mask_u8 > 0] = np.clip(
+                    lama_full[:, :, c][mask_u8 > 0] + (wall_mean - fill_mean), 0, 255
+                )
+        fill = lama_full
+
+    # ── Composite: wide feathered blend (~60 px transition zone) ─────────────
     mask_f32 = (mask > 127).astype(np.float32)
-    kernel   = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
-    alpha    = cv2.GaussianBlur(cv2.erode(mask_f32, kernel, iterations=1),
-                                (9, 9), 0)
-    result = frame.copy().astype(np.float32)
-    lama_f = lama_full.astype(np.float32)
+    kernel   = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
+    alpha    = cv2.GaussianBlur(cv2.erode(mask_f32, kernel, iterations=2), (61, 61), 0)
+    result   = frame.copy().astype(np.float32)
     for c in range(3):
-        result[:, :, c] = frame[:, :, c] * (1.0 - alpha) + lama_f[:, :, c] * alpha
+        result[:, :, c] = frame[:, :, c] * (1.0 - alpha) + fill[:, :, c] * alpha
 
-    cv2.imwrite(output_path, result.astype(np.uint8),
-                [cv2.IMWRITE_JPEG_QUALITY, 97])
+    cv2.imwrite(output_path, result.astype(np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 97])
     return output_path
 
 
