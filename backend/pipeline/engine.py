@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import cv2
 import numpy as np
@@ -18,13 +19,53 @@ logging.basicConfig(level=logging.INFO,
 jobs: dict = {}
 _jobs_lock  = threading.Lock()
 
-EXTRACT_FPS = 1      # 1 fps — LaMa takes ~4s/frame; 1fps = manageable
-CRF         = 18
+# Adaptive extraction FPS:
+# • FAST path (Gaussian fill, ~0.2 s/frame) → 6 fps → smooth motion
+# • LAMA path (deep inpaint, ~13 s/frame)   → 1 fps → manageable time
+EXTRACT_FPS_FAST = 6
+EXTRACT_FPS_LAMA = 1
+EXTRACT_FPS      = EXTRACT_FPS_LAMA   # kept for backward compat
+CRF              = 18
 
 _BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 _BACKEND    = os.path.dirname(_BASE_DIR)
 _STORAGE    = os.path.join(_BACKEND, "storage")
 _YOLO_PT    = os.path.join(_BACKEND, "yolov8n.pt")
+
+# Global YOLO cache — loaded once, reused across all pipeline runs
+_yolo_model      = None
+_yolo_model_lock = threading.Lock()
+
+
+def _load_yolo():
+    """Return a cached YOLO instance, loading it on first call."""
+    global _yolo_model
+    if _yolo_model is None:
+        with _yolo_model_lock:
+            if _yolo_model is None:
+                from ultralytics import YOLO
+                _yolo_model = YOLO(_YOLO_PT)
+    return _yolo_model
+
+
+def _bg_is_neutral(frame_path: str, bbox: list) -> bool:
+    """
+    Return True when the background surrounding bbox is mostly neutral
+    (wall / ceiling / floor).  Used to choose FAST vs LAMA inpaint path
+    and the appropriate extraction FPS before frames are extracted.
+    """
+    frame = cv2.imread(frame_path)
+    if frame is None:
+        return False
+    h, w = frame.shape[:2]
+    x1, y1, x2, y2 = [int(v) for v in bbox]
+    mask_u8 = np.zeros((h, w), np.uint8)
+    mask_u8[max(0,y1):min(h,y2), max(0,x1):min(w,x2)] = 255
+    hsv      = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    neutral  = (hsv[:, :, 1] < 40) & (hsv[:, :, 2] > 100)
+    sample   = (neutral & (mask_u8 == 0)).astype(np.float32)
+    coverage = float(sample.sum()) / max(float((mask_u8 > 0).sum()), 1)
+    return coverage >= 0.3
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -233,72 +274,97 @@ def run_pipeline(video_path: str, command: dict, job_id: str | None = None):
         if start_sec >= end_sec:
             raise ValueError(f"Invalid range: {start_sec}–{end_sec}s")
 
-        # ── STEP 1: Extract frames ────────────────────────────────────────
+        # ── STEP 1: Probe first frame → choose FPS + inpaint path ────────
+        jobs[job_id]["progress"] = 5
+        probe_dir = os.path.join(_STORAGE, job_id, "probe")
+        probe_frames = extract_frames(video_path, probe_dir, fps=1,
+                                      start_sec=start_sec,
+                                      end_sec=min(start_sec + 2, end_sec))
+        neutral_bg  = bool(probe_frames and _bg_is_neutral(probe_frames[0], hint_bbox))
+        extract_fps = EXTRACT_FPS_FAST if neutral_bg else EXTRACT_FPS_LAMA
+        log.info("background=%s → extract_fps=%d",
+                 "neutral" if neutral_bg else "complex", extract_fps)
+
+        # ── STEP 2: Extract frames at chosen FPS ─────────────────────────
         jobs[job_id]["progress"] = 8
-        log.info("Step 1: extracting frames %.1fs–%.1fs at %d fps",
-                 start_sec, end_sec, EXTRACT_FPS)
+        log.info("Step 2: extracting frames %.1fs–%.1fs at %d fps",
+                 start_sec, end_sec, extract_fps)
         frame_paths = extract_frames(video_path, frames_dir,
-                                     fps=EXTRACT_FPS,
+                                     fps=extract_fps,
                                      start_sec=start_sec, end_sec=end_sec)
         if not frame_paths:
             raise RuntimeError(f"No frames extracted from {start_sec}s to {end_sec}s.")
         log.info("  extracted %d frames", len(frame_paths))
 
-        # ── STEP 2: Per-frame YOLO detection for accurate bbox ────────────
+        # ── STEP 3: YOLO tracking with stride (1 YOLO run per second) ────
         jobs[job_id]["progress"] = 15
-        log.info("Step 2: per-frame object detection (tracking)")
-        from ultralytics import YOLO
-        yolo = YOLO(_YOLO_PT)
+        log.info("Step 3: YOLO tracking (stride=%d)", extract_fps)
+        yolo   = _load_yolo()
+        stride = max(1, extract_fps)   # 1 detection per second of video
         per_frame_bboxes = []
-        for fp in frame_paths:
-            detected = _detect_in_frame(fp, hint_bbox, yolo)
-            per_frame_bboxes.append(detected or hint_bbox)
-            log.info("  %s → %s", os.path.basename(fp),
-                     detected if detected else "fallback to hint")
-        del yolo  # free memory before LaMa
+        current_bbox = hint_bbox
+        for i, fp in enumerate(frame_paths):
+            if i % stride == 0:        # re-detect once per second
+                detected     = _detect_in_frame(fp, current_bbox, yolo)
+                current_bbox = detected or current_bbox
+            per_frame_bboxes.append(current_bbox)
+        log.info("  ran YOLO on %d/%d frames", len(frame_paths)//stride + 1,
+                 len(frame_paths))
 
-        # ── STEP 3: Full bbox masks per frame (LaMa works best with solid masks)
+        # ── STEP 4: Generate masks ────────────────────────────────────────
         jobs[job_id]["progress"] = 22
-        log.info("Step 3: generating masks")
+        log.info("Step 4: generating masks")
         masks = [_bbox_mask(fp, bb)
                  for fp, bb in zip(frame_paths, per_frame_bboxes)]
 
-        # ── STEP 4: LaMa inpainting ───────────────────────────────────────
+        # ── STEP 5: Inpainting (parallel workers for fast path) ───────────
         jobs[job_id]["progress"] = 30
-        log.info("Step 4: LaMa inpainting %d frames", len(frame_paths))
+        n = len(frame_paths)
+        log.info("Step 5: inpainting %d frames", n)
         os.makedirs(edited_dir, exist_ok=True)
-        edited_paths = []
-        for i, (fp, mask) in enumerate(zip(frame_paths, masks)):
-            out_path = os.path.join(edited_dir, f"edited_{i:04d}.jpg")
-            _lama_inpaint(fp, mask, out_path)
-            edited_paths.append(out_path)
-            jobs[job_id]["progress"] = 30 + int((i+1)/len(frame_paths)*42)
-            log.info("  frame %d/%d done", i+1, len(frame_paths))
-        log.info("  inpainting complete")
+        out_paths = [os.path.join(edited_dir, f"edited_{i:04d}.jpg")
+                     for i in range(n)]
 
-        # ── STEP 5: Encode edited segment ────────────────────────────────
+        def _inpaint_task(args):
+            fp, mask, out_path = args
+            _lama_inpaint(fp, mask, out_path)
+            return out_path
+
+        workers = min(4, os.cpu_count() or 1) if neutral_bg else 1
+        completed = 0
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futs = {pool.submit(_inpaint_task, (fp, m, op)): i
+                    for i, (fp, m, op) in enumerate(zip(frame_paths, masks, out_paths))}
+            for fut in as_completed(futs):
+                fut.result()
+                completed += 1
+                jobs[job_id]["progress"] = 30 + int(completed / n * 42)
+        log.info("  inpainting complete (%d workers)", workers)
+        edited_paths = out_paths
+
+        # ── STEP 6: Encode edited segment ────────────────────────────────
         jobs[job_id]["progress"] = 73
         tmp_dir = tempfile.mkdtemp(prefix="frameai_")
         seg_b   = os.path.join(tmp_dir, "seg_b.mp4")
-        log.info("Step 5: encoding edited segment")
+        log.info("Step 6: encoding edited segment")
         _ffmpeg(
-            "-framerate", str(EXTRACT_FPS),
+            "-framerate", str(extract_fps),
             "-i", os.path.join(edited_dir, "edited_%04d.jpg"),
             "-vf", f"fps={orig_fps:.3f},scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
             seg_b, label="encode_seg"
         )
 
-        # ── STEP 6: Assemble full video ───────────────────────────────────
+        # ── STEP 7: Assemble full video ───────────────────────────────────
         jobs[job_id]["progress"] = 83
-        log.info("Step 6: assembling full video")
+        log.info("Step 7: assembling full video")
         no_audio = os.path.join(tmp_dir, "no_audio.mp4")
         _assemble(video_path, seg_b, no_audio, start_sec, end_sec, duration, tmp_dir, rotation)
 
-        # ── STEP 7: Add audio ─────────────────────────────────────────────
+        # ── STEP 8: Add audio ─────────────────────────────────────────────
         jobs[job_id]["progress"] = 93
         final = os.path.join(out_dir, "final.mp4")
-        log.info("Step 7: adding audio → %s", final)
+        log.info("Step 8: adding audio → %s", final)
         _add_audio(no_audio, video_path, final)
 
         jobs[job_id].update({"status": "completed", "output": final, "progress": 100})
@@ -408,29 +474,40 @@ def run_magic_erase(video_path: str, command: dict, job_id: str = None):
         out_dir    = os.path.join(base, job_id, "output")
         os.makedirs(out_dir, exist_ok=True)
 
-        # ── STEP 1: Extract frames ────────────────────────────────────────
+        # ── STEP 1: Probe first frame → choose FPS ───────────────────────
+        jobs[job_id]["progress"] = 5
+        probe_dir   = os.path.join(_STORAGE, job_id, "probe")
+        probe_frames = extract_frames(video_path, probe_dir, fps=1,
+                                      start_sec=start_sec,
+                                      end_sec=min(start_sec + 2, end_sec))
+        neutral_bg  = bool(probe_frames and
+                           _bg_is_neutral(probe_frames[0], hint_bboxes[0]))
+        extract_fps = EXTRACT_FPS_FAST if neutral_bg else EXTRACT_FPS_LAMA
+
+        # ── STEP 2: Extract frames at chosen FPS ─────────────────────────
         jobs[job_id]["progress"] = 8
-        frame_paths = extract_frames(video_path, frames_dir, fps=EXTRACT_FPS,
+        frame_paths = extract_frames(video_path, frames_dir, fps=extract_fps,
                                      start_sec=start_sec, end_sec=end_sec)
         if not frame_paths:
             raise RuntimeError(f"No frames extracted from {start_sec}s to {end_sec}s")
-        log.info("  extracted %d frames", len(frame_paths))
+        log.info("  extracted %d frames at %dfps", len(frame_paths), extract_fps)
 
-        # ── STEP 2: Track each selected object independently ──────────────
+        # ── STEP 3: Track each object with stride ────────────────────────
         jobs[job_id]["progress"] = 15
-        from ultralytics import YOLO
-        yolo = YOLO(_YOLO_PT)
-        per_object_tracks = []          # [obj_idx][frame_idx] = bbox
+        yolo   = _load_yolo()
+        stride = max(1, extract_fps)
+        per_object_tracks = []
         for hint in hint_bboxes:
             track = []
-            for fp in frame_paths:
-                detected = _detect_in_frame(fp, hint, yolo)
-                track.append(detected or hint)
+            current = hint
+            for i, fp in enumerate(frame_paths):
+                if i % stride == 0:
+                    detected = _detect_in_frame(fp, current, yolo)
+                    current  = detected or current
+                track.append(current)
             per_object_tracks.append(track)
-            log.info("  tracked hint=%s across %d frames", hint, len(frame_paths))
-        del yolo
 
-        # ── STEP 3: Combined mask per frame (all objects unioned) ─────────
+        # ── STEP 4: Combined mask per frame ──────────────────────────────
         jobs[job_id]["progress"] = 25
         masks = []
         for fi, fp in enumerate(frame_paths):
@@ -438,30 +515,41 @@ def run_magic_erase(video_path: str, command: dict, job_id: str = None):
                                  for oi in range(len(hint_bboxes))]
             masks.append(_combined_mask(fp, bboxes_this_frame))
 
-        # ── STEP 4: Inpainting ────────────────────────────────────────────
+        # ── STEP 5: Parallel inpainting ───────────────────────────────────
         jobs[job_id]["progress"] = 30
+        n = len(frame_paths)
         os.makedirs(edited_dir, exist_ok=True)
-        edited_paths = []
-        for i, (fp, mask) in enumerate(zip(frame_paths, masks)):
-            out_path = os.path.join(edited_dir, f"edited_{i:04d}.jpg")
-            _lama_inpaint(fp, mask, out_path)
-            edited_paths.append(out_path)
-            jobs[job_id]["progress"] = 30 + int((i + 1) / len(frame_paths) * 45)
-            log.info("  frame %d/%d done", i + 1, len(frame_paths))
+        out_paths = [os.path.join(edited_dir, f"edited_{i:04d}.jpg")
+                     for i in range(n)]
 
-        # ── STEP 5: Encode edited segment ────────────────────────────────
+        def _inpaint_task_me(args):
+            fp, mask, op = args
+            _lama_inpaint(fp, mask, op)
+
+        workers   = min(4, os.cpu_count() or 1) if neutral_bg else 1
+        completed = 0
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futs = {pool.submit(_inpaint_task_me, (fp, m, op)): i
+                    for i, (fp, m, op) in enumerate(zip(frame_paths, masks, out_paths))}
+            for fut in as_completed(futs):
+                fut.result()
+                completed += 1
+                jobs[job_id]["progress"] = 30 + int(completed / n * 45)
+        edited_paths = out_paths
+
+        # ── STEP 6: Encode edited segment ────────────────────────────────
         jobs[job_id]["progress"] = 76
         tmp_dir = tempfile.mkdtemp(prefix="frameai_")
         seg_b   = os.path.join(tmp_dir, "seg_b.mp4")
         _ffmpeg(
-            "-framerate", str(EXTRACT_FPS),
+            "-framerate", str(extract_fps),
             "-i", os.path.join(edited_dir, "edited_%04d.jpg"),
             "-vf", f"fps={orig_fps:.3f},scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
             seg_b, label="encode_magic"
         )
 
-        # ── STEP 6: Assemble + audio ──────────────────────────────────────
+        # ── STEP 7: Assemble + audio ──────────────────────────────────────
         jobs[job_id]["progress"] = 87
         no_audio = os.path.join(tmp_dir, "no_audio.mp4")
         _assemble(video_path, seg_b, no_audio, start_sec, end_sec, duration, tmp_dir, rotation)
