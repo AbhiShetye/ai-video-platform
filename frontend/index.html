@@ -935,7 +935,7 @@ async function runMagicErase() {
     });
     const d = await r.json();
     if (!d.job_id) throw new Error(d.error || 'Failed to start');
-    pollJob(d.job_id, 'eraseProgBar', 'eraseProgLabel', 'eraseProgWrap', 'eraseResultWrap', btn, '✨ Erase Selected Objects');
+    pollGenericJob(d.job_id, 'eraseProgBar', 'eraseProgLabel', 'eraseProgWrap', 'eraseResultWrap', btn, '✨ Erase Selected Objects');
   } catch (err) {
     btn.disabled = false; btn.classList.remove('running'); btn.textContent = '✨ Erase Selected Objects';
     document.getElementById('eraseProgWrap').classList.remove('on');
@@ -1014,7 +1014,7 @@ async function runMuteAudio() {
     const d = await r.json();
     if (!d.job_id) throw new Error(d.error || 'Failed to start');
     muteJobId = d.job_id;
-    pollJob(d.job_id, 'muteProgBar', 'muteProgLabel', 'muteProgWrap', 'muteResultWrap', btn, '\u{1F3B5} Remove Audio Segments');
+    pollGenericJob(d.job_id, 'muteProgBar', 'muteProgLabel', 'muteProgWrap', 'muteResultWrap', btn, '\u{1F3B5} Remove Audio Segments');
   } catch (err) {
     btn.disabled = false; btn.classList.remove('running'); btn.textContent = '\u{1F3B5} Remove Audio Segments';
     document.getElementById('muteProgWrap').classList.remove('on');
@@ -1029,7 +1029,7 @@ function downloadMute() {
 // ══════════════════════════════════════════════════════════════════════════════
 // GENERIC JOB POLLER (shared by eraser + audio)
 // ══════════════════════════════════════════════════════════════════════════════
-function pollJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
+function pollGenericJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
   // Store job id per feature
   if (barId.startsWith('erase')) eraserJobId = jid;
   if (barId.startsWith('mute'))  muteJobId   = jid;

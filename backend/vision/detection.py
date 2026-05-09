@@ -48,21 +48,25 @@ def detect_first_frame(video_path):
     frames = extract_frames(video_path, tmp, fps=1, end_sec=10)
     if not frames:
         return []
-    yolo = load_model()
+    # Use a fresh local YOLO instance (not the global cache) so concurrent
+    # requests don't race on the model's internal first-inference fuse step.
+    yolo = YOLO(_YOLO_PT)
     all_objects = []
     seen = set()
-    for frame in frames:
-        detections = yolo(frame, verbose=False)
-        for det in detections[0].boxes:
-            label = detections[0].names[int(det.cls)]
-            conf = round(float(det.conf), 2)
-            bbox = [int(x) for x in det.xyxy[0].tolist()]
-            key = label
-            if key not in seen and conf > 0.4:
-                seen.add(key)
-                all_objects.append({
-                    "label": label,
-                    "bbox": bbox,
-                    "confidence": conf
-                })
+    try:
+        for frame in frames:
+            detections = yolo(frame, verbose=False)
+            for det in detections[0].boxes:
+                label = detections[0].names[int(det.cls)]
+                conf = round(float(det.conf), 2)
+                bbox = [int(x) for x in det.xyxy[0].tolist()]
+                if label not in seen and conf > 0.4:
+                    seen.add(label)
+                    all_objects.append({
+                        "label": label,
+                        "bbox": bbox,
+                        "confidence": conf
+                    })
+    finally:
+        del yolo
     return all_objects
