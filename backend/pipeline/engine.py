@@ -22,7 +22,7 @@ _jobs_lock  = threading.Lock()
 # Adaptive extraction FPS:
 # • FAST path (Gaussian fill, ~0.2 s/frame) → 6 fps → smooth motion
 # • LAMA path (deep inpaint, ~13 s/frame)   → 1 fps → manageable time
-EXTRACT_FPS_FAST = 6
+EXTRACT_FPS_FAST = 12   # 12fps → each held for 2.5 video frames at 30fps (was 6 → 5 frames)
 EXTRACT_FPS_LAMA = 1
 EXTRACT_FPS      = EXTRACT_FPS_LAMA   # kept for backward compat
 CRF              = 18
@@ -137,7 +137,10 @@ def _bbox_mask(frame_path: str, bbox: list) -> np.ndarray:
     # Expand by 15% of the shorter bbox dimension (min 20px).
     # YOLO tends to hug the visible content edge and miss object borders such
     # as TV bezels; this expansion ensures full coverage.
-    pad = max(20, int(min(x2 - x1, y2 - y1) * 0.17))
+    # Expand by 25% of the shorter dimension (min 30px).
+    # Larger padding captures bezel/border pixels that YOLO often misses,
+    # especially for TVs and monitors where the bezel is dark and distinct.
+    pad = max(30, int(min(x2 - x1, y2 - y1) * 0.25))
     x1=max(0,x1-pad); y1=max(0,y1-pad)
     x2=min(w,x2+pad); y2=min(h,y2+pad)
     mask = np.zeros((h, w), dtype=np.uint8)
@@ -174,12 +177,12 @@ def _lama_inpaint(frame_path: str, mask: np.ndarray, output_path: str):
         for c in range(3):
             ch      = frame_s[:, :, c].astype(np.float32) * samp_s
             # Near scale (captures local gradient near the mask edge)
-            bv_n = cv2.GaussianBlur(ch,     (0, 0), 60 / DS)
-            bw_n = cv2.GaussianBlur(samp_s, (0, 0), 60 / DS)
+            bv_n = cv2.GaussianBlur(ch,     (0, 0), 80 / DS)   # wider = more stable
+            bw_n = cv2.GaussianBlur(samp_s, (0, 0), 80 / DS)
             near = bv_n / (bw_n + 1e-6)
-            # Far scale (covers pixels deep inside large masks)
-            bv_f = cv2.GaussianBlur(ch,     (0, 0), 150 / DS)
-            bw_f = cv2.GaussianBlur(samp_s, (0, 0), 150 / DS)
+            # Far scale (covers pixels deep inside large masks + temporal stability)
+            bv_f = cv2.GaussianBlur(ch,     (0, 0), 200 / DS)  # larger radius anchors to stable wall color
+            bw_f = cv2.GaussianBlur(samp_s, (0, 0), 200 / DS)
             far  = bv_f / (bw_f + 1e-6)
             t = np.clip(bw_n * 4, 0, 1)
             gauss_s[:, :, c] = near * t + far * (1.0 - t)
@@ -191,8 +194,8 @@ def _lama_inpaint(frame_path: str, mask: np.ndarray, output_path: str):
         ring_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41))
         ring   = (cv2.dilate(mask_u8, ring_k) > 0) & (mask_u8 == 0) & neutral
         for c in range(3):
-            std   = min(float(frame[:, :, c][ring].std()) if ring.any() else 2.0, 3.0)
-            noise = np.random.normal(0, std * 0.65, (h, w)).astype(np.float32)
+            std   = min(float(frame[:, :, c][ring].std()) if ring.any() else 1.0, 2.0)
+            noise = np.random.normal(0, std * 0.35, (h, w)).astype(np.float32)
             gauss[:, :, c][mask_u8 > 0] = np.clip(
                 gauss[:, :, c][mask_u8 > 0] + noise[mask_u8 > 0], 0, 255
             )
@@ -296,45 +299,78 @@ def run_pipeline(video_path: str, command: dict, job_id: str | None = None):
             raise RuntimeError(f"No frames extracted from {start_sec}s to {end_sec}s.")
         log.info("  extracted %d frames", len(frame_paths))
 
-        # ── STEP 3: YOLO tracking with stride (1 YOLO run per second) ────
+        # ── STEP 3: YOLO tracking — detect once per stride, then classify ───
         jobs[job_id]["progress"] = 15
         log.info("Step 3: YOLO tracking (stride=%d)", extract_fps)
         yolo   = _load_yolo()
-        stride = max(1, extract_fps)   # 1 detection per second of video
+        stride = max(1, extract_fps)   # 1 YOLO run per second of video
+
+        # Phase 3a: run YOLO at each stride boundary, collect detection or None
+        stride_starts = list(range(0, len(frame_paths), stride))
+        stride_dets   = []   # bbox or None, one per stride window
+        current_bbox  = hint_bbox
+        for si in stride_starts:
+            det = _detect_in_frame(frame_paths[si], current_bbox, yolo)
+            if det:
+                current_bbox = det
+            stride_dets.append(det)
+        log.info("  YOLO ran on %d stride windows (%d total frames)",
+                 len(stride_starts), len(frame_paths))
+
+        # Phase 3b: mark a stride as inactive when it AND a neighbour both miss
+        # (single miss = brief occlusion → carry forward; 2+ consecutive = camera
+        # has panned away from the object → copy original frame, no inpainting)
+        n_s = len(stride_dets)
+        stride_active = []
+        for k, det in enumerate(stride_dets):
+            if det is not None:
+                stride_active.append(True)
+            else:
+                adjacent_miss = (
+                    (k > 0     and stride_dets[k - 1] is None) or
+                    (k < n_s-1 and stride_dets[k + 1] is None)
+                )
+                stride_active.append(not adjacent_miss)
+
+        # Phase 3c: assign per-frame bbox — None = copy original, no mask
         per_frame_bboxes = []
-        current_bbox = hint_bbox
-        for i, fp in enumerate(frame_paths):
-            if i % stride == 0:        # re-detect once per second
-                detected     = _detect_in_frame(fp, current_bbox, yolo)
-                current_bbox = detected or current_bbox
-            per_frame_bboxes.append(current_bbox)
-        log.info("  ran YOLO on %d/%d frames", len(frame_paths)//stride + 1,
-                 len(frame_paths))
+        last_good = hint_bbox
+        for k, si in enumerate(stride_starts):
+            end_i = stride_starts[k + 1] if k + 1 < len(stride_starts) else len(frame_paths)
+            if stride_dets[k]:
+                last_good = stride_dets[k]
+            box = last_good if stride_active[k] else None
+            for fi in range(si, min(end_i, len(frame_paths))):
+                per_frame_bboxes.append(box)
 
-        # ── STEP 4: Generate masks ────────────────────────────────────────
+        active_count = sum(1 for b in per_frame_bboxes if b is not None)
+        log.info("  active (will inpaint): %d/%d frames", active_count, len(frame_paths))
+
+        # ── STEP 4+5: Mask + Inpaint active frames; copy original for inactive ─
         jobs[job_id]["progress"] = 22
-        log.info("Step 4: generating masks")
-        masks = [_bbox_mask(fp, bb)
-                 for fp, bb in zip(frame_paths, per_frame_bboxes)]
-
-        # ── STEP 5: Inpainting (parallel workers for fast path) ───────────
-        jobs[job_id]["progress"] = 30
         n = len(frame_paths)
-        log.info("Step 5: inpainting %d frames", n)
+        log.info("Step 4+5: inpainting %d active frames (%d workers)",
+                 active_count, min(4, os.cpu_count() or 1) if neutral_bg else 1)
         os.makedirs(edited_dir, exist_ok=True)
         out_paths = [os.path.join(edited_dir, f"edited_{i:04d}.jpg")
                      for i in range(n)]
 
         def _inpaint_task(args):
-            fp, mask, out_path = args
-            _lama_inpaint(fp, mask, out_path)
-            return out_path
+            fp, bbox, op = args
+            if bbox is None:
+                # Object not in frame (camera pan) — keep original pixels
+                shutil.copy(fp, op)
+                return op
+            mask = _bbox_mask(fp, bbox)
+            return _lama_inpaint(fp, mask, op)
 
         workers = min(4, os.cpu_count() or 1) if neutral_bg else 1
         completed = 0
+        jobs[job_id]["progress"] = 30
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futs = {pool.submit(_inpaint_task, (fp, m, op)): i
-                    for i, (fp, m, op) in enumerate(zip(frame_paths, masks, out_paths))}
+            futs = {pool.submit(_inpaint_task, (fp, bbox, op)): i
+                    for i, (fp, bbox, op) in enumerate(
+                        zip(frame_paths, per_frame_bboxes, out_paths))}
             for fut in as_completed(futs):
                 fut.result()
                 completed += 1
@@ -634,7 +670,7 @@ def _combined_mask(frame_path: str, bboxes: list) -> np.ndarray:
     combined = np.zeros((h, w), dtype=np.uint8)
     for bbox in bboxes:
         x1, y1, x2, y2 = [int(v) for v in bbox]
-        pad = max(20, int(min(x2 - x1, y2 - y1) * 0.17))
+        pad = max(30, int(min(x2 - x1, y2 - y1) * 0.25))
         x1 = max(0, x1 - pad); y1 = max(0, y1 - pad)
         x2 = min(w, x2 + pad); y2 = min(h, y2 + pad)
         combined[y1:y2, x1:x2] = 255
@@ -689,45 +725,82 @@ def run_magic_erase(video_path: str, command: dict, job_id: str = None):
             raise RuntimeError(f"No frames extracted from {start_sec}s to {end_sec}s")
         log.info("  extracted %d frames at %dfps", len(frame_paths), extract_fps)
 
-        # ── STEP 3: Track each object with stride ────────────────────────
+        # ── STEP 3: Track each object with stride — detect-first approach ───
         jobs[job_id]["progress"] = 15
         yolo   = _load_yolo()
         stride = max(1, extract_fps)
-        per_object_tracks = []
+
+        # For each object: detect at every stride boundary, record bbox or None
+        stride_starts = list(range(0, len(frame_paths), stride))
+        n_s = len(stride_starts)
+        per_object_stride_dets = []
         for hint in hint_bboxes:
-            track = []
             current = hint
-            for i, fp in enumerate(frame_paths):
-                if i % stride == 0:
-                    detected = _detect_in_frame(fp, current, yolo)
-                    current  = detected or current
-                track.append(current)
+            dets = []
+            for si in stride_starts:
+                det = _detect_in_frame(frame_paths[si], current, yolo)
+                if det:
+                    current = det
+                dets.append(det)
+            per_object_stride_dets.append(dets)
+
+        # A stride window is active if ANY object was detected in it OR in an
+        # adjacent window (single miss = occlusion; 2+ consecutive = camera away)
+        stride_any_det = [
+            any(per_object_stride_dets[oi][k] is not None
+                for oi in range(len(hint_bboxes)))
+            for k in range(n_s)
+        ]
+        stride_active = []
+        for k, any_det in enumerate(stride_any_det):
+            if any_det:
+                stride_active.append(True)
+            else:
+                adj_miss = (
+                    (k > 0     and not stride_any_det[k - 1]) or
+                    (k < n_s-1 and not stride_any_det[k + 1])
+                )
+                stride_active.append(not adj_miss)
+
+        # Build per-frame bbox lists (None = this frame should use original)
+        per_object_tracks = []
+        for oi, dets in enumerate(per_object_stride_dets):
+            last_good = hint_bboxes[oi]
+            track = []
+            for k, si in enumerate(stride_starts):
+                end_i = stride_starts[k+1] if k+1 < n_s else len(frame_paths)
+                if dets[k]:
+                    last_good = dets[k]
+                box = last_good if stride_active[k] else None
+                for fi in range(si, min(end_i, len(frame_paths))):
+                    track.append(box)
             per_object_tracks.append(track)
 
-        # ── STEP 4: Combined mask per frame ──────────────────────────────
+        # ── STEP 4+5: Combined mask per frame + parallel inpainting ──────
         jobs[job_id]["progress"] = 25
-        masks = []
-        for fi, fp in enumerate(frame_paths):
-            bboxes_this_frame = [per_object_tracks[oi][fi]
-                                 for oi in range(len(hint_bboxes))]
-            masks.append(_combined_mask(fp, bboxes_this_frame))
-
-        # ── STEP 5: Parallel inpainting ───────────────────────────────────
-        jobs[job_id]["progress"] = 30
         n = len(frame_paths)
         os.makedirs(edited_dir, exist_ok=True)
         out_paths = [os.path.join(edited_dir, f"edited_{i:04d}.jpg")
                      for i in range(n)]
 
         def _inpaint_task_me(args):
-            fp, mask, op = args
+            fi, fp, op = args
+            bboxes_this_frame = [per_object_tracks[oi][fi]
+                                 for oi in range(len(hint_bboxes))
+                                 if per_object_tracks[oi][fi] is not None]
+            if not bboxes_this_frame:
+                shutil.copy(fp, op)  # object not in frame → keep original
+                return op
+            mask = _combined_mask(fp, bboxes_this_frame)
             _lama_inpaint(fp, mask, op)
+            return op
 
         workers   = min(4, os.cpu_count() or 1) if neutral_bg else 1
         completed = 0
+        jobs[job_id]["progress"] = 30
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futs = {pool.submit(_inpaint_task_me, (fp, m, op)): i
-                    for i, (fp, m, op) in enumerate(zip(frame_paths, masks, out_paths))}
+            futs = {pool.submit(_inpaint_task_me, (i, fp, op)): i
+                    for i, (fp, op) in enumerate(zip(frame_paths, out_paths))}
             for fut in as_completed(futs):
                 fut.result()
                 completed += 1
