@@ -317,20 +317,17 @@ def run_pipeline(video_path: str, command: dict, job_id: str | None = None):
         log.info("  YOLO ran on %d stride windows (%d total frames)",
                  len(stride_starts), len(frame_paths))
 
-        # Phase 3b: mark a stride as inactive when it AND a neighbour both miss
-        # (single miss = brief occlusion → carry forward; 2+ consecutive = camera
-        # has panned away from the object → copy original frame, no inpainting)
-        n_s = len(stride_dets)
-        stride_active = []
-        for k, det in enumerate(stride_dets):
-            if det is not None:
-                stride_active.append(True)
-            else:
-                adjacent_miss = (
-                    (k > 0     and stride_dets[k - 1] is None) or
-                    (k < n_s-1 and stride_dets[k + 1] is None)
-                )
-                stride_active.append(not adjacent_miss)
+        # Phase 3b: determine the "active window" — first stride with a detection
+        # to the last stride with a detection (inclusive).  Outside this window the
+        # camera has not reached the object yet (pan-in) or has already left it
+        # (pan-out), so we copy the original frame and avoid ghost fills.
+        # Inside the window we always apply the mask (last-good bbox when YOLO
+        # misses a stride) so brief occlusions / tracking failures don't leave
+        # flickering un-erased frames.
+        first_det = next((k for k, d in enumerate(stride_dets) if d is not None), None)
+        last_det  = max((k for k, d in enumerate(stride_dets) if d is not None), default=None)
+        log.info("  active stride window: %s → %s  (of 0–%d)",
+                 first_det, last_det, len(stride_dets) - 1)
 
         # Phase 3c: assign per-frame bbox — None = copy original, no mask
         per_frame_bboxes = []
@@ -339,7 +336,9 @@ def run_pipeline(video_path: str, command: dict, job_id: str | None = None):
             end_i = stride_starts[k + 1] if k + 1 < len(stride_starts) else len(frame_paths)
             if stride_dets[k]:
                 last_good = stride_dets[k]
-            box = last_good if stride_active[k] else None
+            # Outside first→last detection window: copy original (no inpainting)
+            in_window = (first_det is not None) and (first_det <= k <= last_det)
+            box = last_good if in_window else None
             for fi in range(si, min(end_i, len(frame_paths))):
                 per_frame_bboxes.append(box)
 
@@ -606,15 +605,29 @@ def run_quick_edit(video_path: str, operation: dict, job_id: str = None):
 
         elif op_type == "aspect":
             ratio = str(operation.get("ratio", "16:9"))
-            target = {"16:9": (16, 9), "9:16": (9, 16), "1:1": (1, 1), "4:3": (4, 3)}.get(ratio, (16, 9))
-            tw, th = target
-            # scale to fit inside target aspect, pad the rest with black
-            # vf: scale to fit with black padding
-            vf = (f"scale=iw*min({tw}*ih\\,{th}*iw)/({th}*iw):"
-                  f"ih*min({tw}*ih\\,{th}*iw)/({th}*iw),"
-                  f"pad={tw}*max(iw/{tw}\\,ih/{th}):"
-                  f"{th}*max(iw/{tw}\\,ih/{th}):(ow-iw)/2:(oh-ih)/2:black,"
-                  f"scale=trunc(ow/2)*2:trunc(oh/2)*2")
+            tw, th = {"16:9": (16, 9), "9:16": (9, 16), "1:1": (1, 1), "4:3": (4, 3)}.get(ratio, (16, 9))
+            # Probe source dimensions so we can compute exact output size in Python
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=width,height",
+                 "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+                capture_output=True, text=True
+            )
+            wh = [int(v) for v in probe.stdout.strip().splitlines() if v.strip()]
+            src_w, src_h = wh[0], wh[1]
+            # Add letterbox (bars top/bottom) or pillarbox (bars left/right)
+            if src_w * th > src_h * tw:
+                # source wider than target → bars top+bottom
+                out_w = src_w & ~1
+                out_h = (src_w * th // tw) & ~1
+            else:
+                # source narrower than target → bars left+right
+                out_h = src_h & ~1
+                out_w = (src_h * tw // th) & ~1
+            # Standard: scale to fit, then pad to exact output size
+            vf = (f"scale={out_w}:{out_h}:force_original_aspect_ratio=decrease,"
+                  f"pad={out_w}:{out_h}:(ow-iw)/2:(oh-ih)/2:black,"
+                  f"scale=trunc(iw/2)*2:trunc(ih/2)*2")
             _ffmpeg(
                 "-i", video_path,
                 "-vf", vf,
@@ -744,23 +757,15 @@ def run_magic_erase(video_path: str, command: dict, job_id: str = None):
                 dets.append(det)
             per_object_stride_dets.append(dets)
 
-        # A stride window is active if ANY object was detected in it OR in an
-        # adjacent window (single miss = occlusion; 2+ consecutive = camera away)
+        # Active window: from first stride where ANY object detected to last such stride.
+        # Before first detection = camera hasn't reached objects yet (pan-in).
+        # After last detection = camera has left (pan-out).  Copy original outside.
         stride_any_det = [
-            any(per_object_stride_dets[oi][k] is not None
-                for oi in range(len(hint_bboxes)))
+            any(per_object_stride_dets[oi][k] is not None for oi in range(len(hint_bboxes)))
             for k in range(n_s)
         ]
-        stride_active = []
-        for k, any_det in enumerate(stride_any_det):
-            if any_det:
-                stride_active.append(True)
-            else:
-                adj_miss = (
-                    (k > 0     and not stride_any_det[k - 1]) or
-                    (k < n_s-1 and not stride_any_det[k + 1])
-                )
-                stride_active.append(not adj_miss)
+        first_det = next((k for k, d in enumerate(stride_any_det) if d), None)
+        last_det  = max((k for k, d in enumerate(stride_any_det) if d), default=None)
 
         # Build per-frame bbox lists (None = this frame should use original)
         per_object_tracks = []
@@ -771,7 +776,8 @@ def run_magic_erase(video_path: str, command: dict, job_id: str = None):
                 end_i = stride_starts[k+1] if k+1 < n_s else len(frame_paths)
                 if dets[k]:
                     last_good = dets[k]
-                box = last_good if stride_active[k] else None
+                in_window = (first_det is not None) and (first_det <= k <= last_det)
+                box = last_good if in_window else None
                 for fi in range(si, min(end_i, len(frame_paths))):
                     track.append(box)
             per_object_tracks.append(track)
