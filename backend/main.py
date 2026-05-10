@@ -141,7 +141,9 @@ def quick_edit(req: QuickEditRequest):
     if not os.path.exists(path):
         return {"error": "File not found"}
     op_type = req.operation.get("type", "")
-    if op_type not in {"trim", "speed", "rotate", "filter", "reverse", "fade", "aspect", "compress"}:
+    _ALLOWED = {"trim","speed","rotate","filter","reverse","fade","aspect","compress",
+                "crop","text","volume","sharpen","denoise","vignette","loop","gif"}
+    if op_type not in _ALLOWED:
         return {"error": f"Unknown operation '{op_type}'"}
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "processing", "progress": 0}
@@ -159,5 +161,28 @@ def status(job_id: str):
 def download(job_id: str):
     s = get_job_status(job_id)
     if s.get("status") == "completed":
-        return FileResponse(s["output"], media_type="video/mp4", filename="edited.mp4")
+        output = s["output"]
+        if output.endswith(".gif"):
+            return FileResponse(output, media_type="image/gif", filename="export.gif")
+        if output.endswith(".mp3"):
+            return FileResponse(output, media_type="audio/mpeg", filename="audio.mp3")
+        return FileResponse(output, media_type="video/mp4", filename="edited.mp4")
     return {"error": "Not ready"}
+
+
+@app.get("/extract-audio/{filename}")
+def extract_audio(filename: str):
+    import tempfile
+    safe_name = os.path.basename(filename)
+    path = os.path.join(UPLOAD_DIR, safe_name)
+    if not os.path.exists(path):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="File not found")
+    tmp = tempfile.mktemp(suffix=".mp3", dir=UPLOAD_DIR)
+    import subprocess
+    subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+         "-i", path, "-vn", "-acodec", "libmp3lame", "-q:a", "2", tmp],
+        check=True
+    )
+    return FileResponse(tmp, media_type="audio/mpeg", filename="audio.mp3")

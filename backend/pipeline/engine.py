@@ -658,6 +658,141 @@ def run_quick_edit(video_path: str, operation: dict, job_id: str = None):
                 final, label="compress"
             )
 
+        elif op_type == "crop":
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=width,height",
+                 "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+                capture_output=True, text=True)
+            wh = [int(v) for v in probe.stdout.strip().splitlines() if v.strip()]
+            src_w, src_h = wh[0], wh[1]
+            cw = min(src_w, max(2, int(operation.get("width",  src_w)) & ~1))
+            ch = min(src_h, max(2, int(operation.get("height", src_h)) & ~1))
+            cx = max(0, min(src_w - cw, int(operation.get("x", (src_w - cw) // 2))))
+            cy = max(0, min(src_h - ch, int(operation.get("y", (src_h - ch) // 2))))
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", f"crop={cw}:{ch}:{cx}:{cy}",
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                final, label="crop"
+            )
+
+        elif op_type == "text":
+            import re as _re
+            raw = str(operation.get("text", "FrameAI"))[:120]
+            # Escape chars that break FFmpeg drawtext
+            raw = _re.sub(r"[\\':=\[\]{}|]", "", raw)
+            pos  = str(operation.get("position", "bc"))
+            size = max(14, min(160, int(operation.get("size", 48))))
+            color = str(operation.get("color", "white"))
+            if color not in {"white","black","yellow","red","green","blue","cyan","magenta"}:
+                color = "white"
+            pos_map = {
+                "tl": ("20", "20"),
+                "tc": ("(w-text_w)/2", "20"),
+                "tr": ("w-text_w-20", "20"),
+                "bl": ("20", "h-text_h-20"),
+                "bc": ("(w-text_w)/2", "h-text_h-20"),
+                "br": ("w-text_w-20", "h-text_h-20"),
+                "center": ("(w-text_w)/2", "(h-text_h)/2"),
+            }
+            x_expr, y_expr = pos_map.get(pos, pos_map["bc"])
+            dt = (f"drawtext=text='{raw}':x={x_expr}:y={y_expr}:"
+                  f"fontsize={size}:fontcolor={color}:fontfile='':"
+                  f"shadowcolor=black@0.6:shadowx=2:shadowy=2:"
+                  f"box=1:boxcolor=black@0.45:boxborderw=8")
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", f"{dt},scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                final, label="text"
+            )
+
+        elif op_type == "volume":
+            level = max(0.0, min(5.0, float(operation.get("level", 1.0))))
+            _ffmpeg(
+                "-i", video_path,
+                "-c:v", "copy",
+                "-af", f"volume={level:.4f}",
+                "-c:a", "aac", "-b:a", "192k",
+                final, label="volume"
+            )
+
+        elif op_type == "sharpen":
+            amount = max(0.0, min(3.0, float(operation.get("amount", 1.0))))
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", (f"unsharp=luma_msize_x=5:luma_msize_y=5:"
+                        f"luma_amount={amount:.2f}:chroma_msize_x=3:"
+                        f"chroma_msize_y=3:chroma_amount=0.5,"
+                        "scale=trunc(iw/2)*2:trunc(ih/2)*2"),
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                final, label="sharpen"
+            )
+
+        elif op_type == "denoise":
+            amount = max(0.0, min(5.0, float(operation.get("amount", 3.0))))
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", (f"hqdn3d=luma_spatial={amount:.1f}:"
+                        f"chroma_spatial={amount*0.75:.1f}:"
+                        f"luma_tmp={amount*1.5:.1f}:"
+                        f"chroma_tmp={amount*1.2:.1f},"
+                        "scale=trunc(iw/2)*2:trunc(ih/2)*2"),
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                final, label="denoise"
+            )
+
+        elif op_type == "vignette":
+            angle = max(0.1, min(1.5, float(operation.get("angle", 0.5))))
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", (f"vignette=angle={angle:.2f},"
+                        "scale=trunc(iw/2)*2:trunc(ih/2)*2"),
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                final, label="vignette"
+            )
+
+        elif op_type == "loop":
+            count = max(2, min(10, int(operation.get("count", 2))))
+            concat_txt = os.path.join(out_dir, "loop_concat.txt")
+            with open(concat_txt, "w") as f:
+                for _ in range(count):
+                    f.write(f"file '{video_path.replace(os.sep, '/')}'\n")
+            _ffmpeg(
+                "-f", "concat", "-safe", "0", "-i", concat_txt,
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "192k",
+                final, label="loop"
+            )
+
+        elif op_type == "gif":
+            fps_g   = min(30, max(5, int(operation.get("fps", 15))))
+            scale_g = min(800, max(200, int(operation.get("scale", 480))))
+            gif_out = os.path.join(out_dir, "export.gif")
+            palette = os.path.join(out_dir, "palette.png")
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", f"fps={fps_g},scale={scale_g}:-1:flags=lanczos,palettegen=max_colors=256",
+                palette, label="gif_palette"
+            )
+            _ffmpeg(
+                "-i", video_path,
+                "-i", palette,
+                "-lavfi", (f"fps={fps_g},scale={scale_g}:-1:flags=lanczos[x];"
+                           "[x][1:v]paletteuse=dither=bayer"),
+                gif_out, label="gif_render"
+            )
+            # GIF is the output — skip the normal mp4 "final"
+            jobs[job_id].update({"status": "completed", "output": gif_out, "progress": 100})
+            log.info("=== QUICK EDIT %s DONE (GIF) → %s ===", job_id, gif_out)
+            return job_id
+
         else:
             raise ValueError(f"Unknown operation type: {op_type!r}")
 

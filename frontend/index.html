@@ -241,6 +241,35 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
 .fade-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .fade-label{font-size:11px;color:var(--t3);min-width:72px;}
 .fade-val{font-size:11px;color:var(--p);font-family:monospace;min-width:30px;text-align:right;font-weight:700;}
+
+/* ── NEW TOOLS ───────────────────────────────────────────────────── */
+.crop-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;}
+.crop-preset{padding:8px 6px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rxs);color:var(--t3);font-size:10px;font-weight:800;cursor:pointer;text-align:center;transition:all .15s;line-height:1.4;letter-spacing:.3px;}
+.crop-preset:hover{border-color:var(--cyan);color:var(--cyan);}
+.crop-preset.active{background:var(--clo);border-color:var(--cyan);color:var(--cyan);}
+.pos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:10px;}
+.pos-btn{padding:7px 4px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rxs);color:var(--t3);font-size:10px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;letter-spacing:.2px;}
+.pos-btn:hover{border-color:var(--amb);color:var(--amb);}
+.pos-btn.active{background:rgba(251,191,36,.12);border-color:var(--amb);color:var(--amb);}
+.color-row{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;}
+.color-swatch{width:22px;height:22px;border-radius:5px;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0;}
+.color-swatch.active{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.3);}
+.vc-btn{padding:7px 10px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rxs);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;}
+.vc-btn:hover{background:var(--s3);color:var(--t1);border-color:var(--borderhi);}
+.gif-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px;}
+.gif-btn{padding:8px 6px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rxs);color:var(--t3);font-size:10px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.4;}
+.gif-btn:hover{border-color:var(--violet);color:var(--violet);}
+.gif-btn.active{background:rgba(167,139,250,.12);border-color:var(--violet);color:var(--violet);}
+.loop-grid{display:flex;gap:5px;margin-bottom:10px;}
+.loop-btn{flex:1;padding:8px 4px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rxs);color:var(--t3);font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;}
+.loop-btn:hover{border-color:var(--em);color:var(--em);}
+.loop-btn.active{background:rgba(52,211,153,.1);border-color:var(--em);color:var(--em);}
+.effect-row{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px;}
+.effect-btn{padding:9px 5px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rsm);color:var(--t3);font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.4;}
+.effect-btn:hover{border-color:var(--borderhi);color:var(--p);}
+.effect-btn.selected{background:var(--plo);border-color:var(--p);color:var(--p);}
+.scr-btn{padding:6px 10px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rxs);color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:all .15s;}
+.scr-btn:hover{background:var(--s3);color:var(--t1);border-color:var(--borderhi);}
 </style>
 </head>
 <body>
@@ -297,6 +326,8 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
       <button id="play-btn" onclick="togglePlay()">&#9654;</button>
       <div class="timecode" id="timecode">0:00 / 0:00</div>
       <div class="vc-spacer"></div>
+      <button class="scr-btn" onclick="takeScreenshot()" title="Save current frame as PNG">&#128247; Screenshot</button>
+      <button class="scr-btn" onclick="extractAudio()" id="extractAudioBtn" title="Download audio as MP3">&#127925; MP3</button>
       <div class="vc-tag" id="vcTag">READY</div>
     </div>
 
@@ -523,6 +554,121 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
           <button class="tool-apply-btn" id="compressBtn" onclick="runTool('compress')">Export Video</button>
           <div class="progress-wrap" id="compressProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="compressProgBar"></div></div><div class="prog-label" id="compressProgLabel"></div></div>
           <div class="result-wrap" id="compressResult"><button class="dl-btn" onclick="downloadTool('compress')">&#11015; Download Exported</button></div>
+        </div>
+
+        <!-- CROP -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#9999; Crop Video</div>
+          <div class="trim-info">Remove edges. Presets center-crop to ratio; or set custom pixels.</div>
+          <div class="crop-grid" id="cropPresets">
+            <div class="crop-preset" onclick="setCropPreset('16:9')">16:9<br><span style="font-weight:400;color:var(--t3)">Landscape</span></div>
+            <div class="crop-preset" onclick="setCropPreset('9:16')">9:16<br><span style="font-weight:400;color:var(--t3)">Portrait</span></div>
+            <div class="crop-preset" onclick="setCropPreset('1:1')">1:1<br><span style="font-weight:400;color:var(--t3)">Square</span></div>
+            <div class="crop-preset" onclick="setCropPreset('4:3')">4:3<br><span style="font-weight:400;color:var(--t3)">Classic</span></div>
+          </div>
+          <div class="time-row" style="margin-bottom:6px;">
+            <div class="tf"><label>Width (px)</label><input type="number" id="cropW" placeholder="auto" min="2" step="2"></div>
+            <div class="tf"><label>Height (px)</label><input type="number" id="cropH" placeholder="auto" min="2" step="2"></div>
+          </div>
+          <div class="time-row" style="margin-bottom:10px;">
+            <div class="tf"><label>X offset</label><input type="number" id="cropX" value="0" min="0" step="1"></div>
+            <div class="tf"><label>Y offset</label><input type="number" id="cropY" value="0" min="0" step="1"></div>
+          </div>
+          <button class="tool-apply-btn" id="cropBtn" onclick="runTool('crop')">Crop Video</button>
+          <div class="progress-wrap" id="cropProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="cropProgBar"></div></div><div class="prog-label" id="cropProgLabel"></div></div>
+          <div class="result-wrap" id="cropResult"><button class="preview-btn" onclick="previewTool('crop')">&#9654; Preview</button><button class="dl-btn" onclick="downloadTool('crop')">&#11015; Download</button></div>
+        </div>
+
+        <!-- TEXT OVERLAY -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#84; Text &amp; Watermark</div>
+          <div class="tf" style="margin-bottom:8px;"><label>Text / Watermark</label><input type="text" id="textContent" placeholder="Enter your text..." style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--rxs);padding:8px 10px;color:var(--t1);font-size:13px;" maxlength="80"></div>
+          <div class="panel-label" style="margin-bottom:6px;">Position</div>
+          <div class="pos-grid" id="posBtns">
+            <div class="pos-btn" onclick="setTextPos('tl')">↖ Top L</div>
+            <div class="pos-btn active" onclick="setTextPos('tc')">↑ Top C</div>
+            <div class="pos-btn" onclick="setTextPos('tr')">↗ Top R</div>
+            <div class="pos-btn" onclick="setTextPos('bl')">↙ Bot L</div>
+            <div class="pos-btn" onclick="setTextPos('bc')">↓ Bot C</div>
+            <div class="pos-btn" onclick="setTextPos('br')">↘ Bot R</div>
+            <div class="pos-btn" onclick="setTextPos('center')" style="grid-column:1/-1;">⊕ Center</div>
+          </div>
+          <div class="fslider-row"><span class="fslider-label">Font size</span><input type="range" class="fslider" id="textSize" min="14" max="160" value="48" oninput="document.getElementById('textSizeVal').textContent=this.value+'px'"><span class="fslider-val" id="textSizeVal">48px</span></div>
+          <div class="panel-label" style="margin-bottom:6px;">Color</div>
+          <div class="color-row" id="colorSwatches">
+            <div class="color-swatch active" style="background:#fff" onclick="setTextColor('white')" title="White"></div>
+            <div class="color-swatch" style="background:#000" onclick="setTextColor('black')" title="Black"></div>
+            <div class="color-swatch" style="background:#fbbf24" onclick="setTextColor('yellow')" title="Yellow"></div>
+            <div class="color-swatch" style="background:#f87171" onclick="setTextColor('red')" title="Red"></div>
+            <div class="color-swatch" style="background:#34d399" onclick="setTextColor('green')" title="Green"></div>
+            <div class="color-swatch" style="background:#38bdf8" onclick="setTextColor('cyan')" title="Cyan"></div>
+            <div class="color-swatch" style="background:#818cf8" onclick="setTextColor('blue')" title="Blue"></div>
+            <div class="color-swatch" style="background:#a78bfa" onclick="setTextColor('magenta')" title="Violet"></div>
+          </div>
+          <button class="tool-apply-btn" id="textBtn" onclick="runTool('text')">&#10004; Add Text</button>
+          <div class="progress-wrap" id="textProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="textProgBar"></div></div><div class="prog-label" id="textProgLabel"></div></div>
+          <div class="result-wrap" id="textResult"><button class="preview-btn" onclick="previewTool('text')">&#9654; Preview</button><button class="dl-btn" onclick="downloadTool('text')">&#11015; Download</button></div>
+        </div>
+
+        <!-- VOLUME -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#128266; Volume Control</div>
+          <div class="fslider-row"><span class="fslider-label">Volume</span><input type="range" class="fslider" id="volumeLevel" min="0" max="500" value="100" oninput="document.getElementById('volumeVal').textContent=Math.round(this.value)+'%'"><span class="fslider-val" id="volumeVal">100%</span></div>
+          <div class="trim-info" style="margin-bottom:10px;">0% = mute · 100% = original · 200%+ = boost</div>
+          <button class="tool-apply-btn" id="volumeBtn" onclick="runTool('volume')">&#128266; Apply Volume</button>
+          <div class="progress-wrap" id="volumeProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="volumeProgBar"></div></div><div class="prog-label" id="volumeProgLabel"></div></div>
+          <div class="result-wrap" id="volumeResult"><button class="preview-btn" onclick="previewTool('volume')">&#9654; Preview</button><button class="dl-btn" onclick="downloadTool('volume')">&#11015; Download</button></div>
+        </div>
+
+        <!-- EFFECTS (Sharpen, Denoise, Vignette) -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#10024; Video Effects</div>
+          <div class="effect-row">
+            <div class="effect-btn" id="efxSharpen" onclick="setEffect('sharpen')">&#128301;<br>Sharpen</div>
+            <div class="effect-btn" id="efxDenoise" onclick="setEffect('denoise')">&#127961;<br>Denoise</div>
+            <div class="effect-btn" id="efxVignette" onclick="setEffect('vignette')">&#9673;<br>Vignette</div>
+          </div>
+          <div id="efxSharpenCtrls" style="display:none;">
+            <div class="fslider-row"><span class="fslider-label">Strength</span><input type="range" class="fslider" id="sharpenAmt" min="0" max="30" value="10" oninput="document.getElementById('sharpenVal').textContent=(this.value/10).toFixed(1)"><span class="fslider-val" id="sharpenVal">1.0</span></div>
+          </div>
+          <div id="efxDenoiseCtrls" style="display:none;">
+            <div class="fslider-row"><span class="fslider-label">Strength</span><input type="range" class="fslider" id="denoiseAmt" min="0" max="50" value="30" oninput="document.getElementById('denoiseVal').textContent=(this.value/10).toFixed(1)"><span class="fslider-val" id="denoiseVal">3.0</span></div>
+          </div>
+          <div id="efxVignetteCtrls" style="display:none;">
+            <div class="fslider-row"><span class="fslider-label">Angle</span><input type="range" class="fslider" id="vignetteAmt" min="1" max="15" value="5" oninput="document.getElementById('vignetteVal').textContent=(this.value/10).toFixed(1)"><span class="fslider-val" id="vignetteVal">0.5</span></div>
+          </div>
+          <button class="tool-apply-btn" id="effectBtn" onclick="applyEffect()" style="display:none;">Apply Effect</button>
+          <div class="progress-wrap" id="effectProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="effectProgBar"></div></div><div class="prog-label" id="effectProgLabel"></div></div>
+          <div class="result-wrap" id="effectResult"><button class="preview-btn" onclick="previewEffect()">&#9654; Preview</button><button class="dl-btn" onclick="downloadEffect()">&#11015; Download</button></div>
+        </div>
+
+        <!-- LOOP -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#9851; Loop Video</div>
+          <div class="trim-info" style="margin-bottom:8px;">Repeat the video N times in sequence.</div>
+          <div class="loop-grid" id="loopBtns">
+            <div class="loop-btn" onclick="setLoop(2)">2×</div>
+            <div class="loop-btn active" onclick="setLoop(3)">3×</div>
+            <div class="loop-btn" onclick="setLoop(4)">4×</div>
+            <div class="loop-btn" onclick="setLoop(5)">5×</div>
+          </div>
+          <button class="tool-apply-btn" id="loopBtn" onclick="runTool('loop')">&#9851; Loop Video</button>
+          <div class="progress-wrap" id="loopProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="loopProgBar"></div></div><div class="prog-label" id="loopProgLabel"></div></div>
+          <div class="result-wrap" id="loopResult"><button class="preview-btn" onclick="previewTool('loop')">&#9654; Preview</button><button class="dl-btn" onclick="downloadTool('loop')">&#11015; Download</button></div>
+        </div>
+
+        <!-- GIF EXPORT -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#127765; GIF Export</div>
+          <div class="trim-info" style="margin-bottom:8px;">Convert video to animated GIF.</div>
+          <div class="gif-grid" id="gifFpsBtns">
+            <div class="gif-btn active" onclick="setGifFps(12)">12 FPS<br><span style="font-weight:400;color:var(--t3)">Smooth</span></div>
+            <div class="gif-btn" onclick="setGifFps(20)">20 FPS<br><span style="font-weight:400;color:var(--t3)">Fluid</span></div>
+          </div>
+          <div class="fslider-row"><span class="fslider-label">Width (px)</span><input type="range" class="fslider" id="gifScale" min="200" max="800" value="480" step="40" oninput="document.getElementById('gifScaleVal').textContent=this.value+'px'"><span class="fslider-val" id="gifScaleVal">480px</span></div>
+          <button class="tool-apply-btn" id="gifBtn" onclick="runTool('gif')" style="background:linear-gradient(135deg,var(--violet),var(--p));">&#127765; Export as GIF</button>
+          <div class="progress-wrap" id="gifProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="gifProgBar"></div></div><div class="prog-label" id="gifProgLabel"></div></div>
+          <div class="result-wrap" id="gifResult"><button class="dl-btn" onclick="downloadTool('gif')" style="background:linear-gradient(135deg,var(--violet),var(--p));">&#11015; Download GIF</button></div>
         </div>
 
       </div>
@@ -979,7 +1125,7 @@ function reset() {
   canvas.width = 0; canvas.height = 0;
   eraserSelections = []; renderEraserList();
   audioSegments = []; renderSegList();
-  ['trim','speed','filter','rotate','reverse','fade','aspect','compress'].forEach(t => {
+  ['trim','speed','filter','rotate','reverse','fade','aspect','compress','crop','text','volume','loop','gif'].forEach(t => {
     const pw = document.getElementById(t+'ProgWrap');
     const rw = document.getElementById(t+'Result');
     if (pw) pw.classList.remove('on');
@@ -1238,7 +1384,7 @@ function pollGenericJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
 }
 
 // ── TOOLS ────────────────────────────────────────────────────────────
-const toolJobs = { trim:null,speed:null,filter:null,rotate:null,reverse:null,fade:null,aspect:null,compress:null };
+const toolJobs = { trim:null,speed:null,filter:null,rotate:null,reverse:null,fade:null,aspect:null,compress:null,crop:null,text:null,volume:null,loop:null,gif:null };
 let selectedSpeed = 1.0;
 let selectedAspect = '16:9';
 let selectedCompress = 'medium';
@@ -1284,6 +1430,38 @@ function _getToolOp(type) {
   }
   if (type === 'aspect')   return { type: 'aspect',   ratio:  selectedAspect };
   if (type === 'compress') return { type: 'compress',  preset: selectedCompress };
+  if (type === 'crop') {
+    const v = document.getElementById('vid');
+    return {
+      type: 'crop',
+      width:  parseInt(document.getElementById('cropW').value)  || (v.videoWidth  || 0),
+      height: parseInt(document.getElementById('cropH').value) || (v.videoHeight || 0),
+      x:      parseInt(document.getElementById('cropX').value)  || 0,
+      y:      parseInt(document.getElementById('cropY').value)  || 0,
+    };
+  }
+  if (type === 'text') {
+    return {
+      type:     'text',
+      text:     document.getElementById('textContent').value || 'FrameAI',
+      position: _textPos,
+      size:     parseInt(document.getElementById('textSize').value),
+      color:    _textColor,
+    };
+  }
+  if (type === 'volume') {
+    return { type: 'volume', level: parseFloat(document.getElementById('volumeLevel').value) / 100 };
+  }
+  if (type === 'loop') {
+    return { type: 'loop', count: _loopCount };
+  }
+  if (type === 'gif') {
+    return {
+      type:  'gif',
+      fps:   _gifFps,
+      scale: parseInt(document.getElementById('gifScale').value),
+    };
+  }
   return null;
 }
 
@@ -1406,6 +1584,137 @@ function previewTool(type) {
 }
 
 const _origSync = syncTimeline;
+
+// ── SCREENSHOT (client-side canvas) ───────────────────────────────────
+function takeScreenshot() {
+  const v = document.getElementById('vid');
+  if (!v.videoWidth) { toast('Load a video first', 'err'); return; }
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  const a = document.createElement('a');
+  a.download = 'screenshot_' + Math.round(v.currentTime) + 's.png';
+  a.href = c.toDataURL('image/png');
+  a.click();
+  toast('Screenshot saved as PNG', 'ok');
+}
+
+// ── EXTRACT AUDIO ─────────────────────────────────────────────────────
+function extractAudio() {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  window.open(API + '/extract-audio/' + encodeURIComponent(videoFile.name), '_blank');
+  toast('Extracting audio as MP3...', 'inf');
+}
+
+// ── CROP ──────────────────────────────────────────────────────────────
+let _cropPreset = null;
+function setCropPreset(ratio) {
+  _cropPreset = ratio;
+  document.querySelectorAll('#cropPresets .crop-preset').forEach(b => {
+    b.classList.toggle('active', b.textContent.startsWith(ratio));
+  });
+  // Auto-fill W/H based on ratio and detected video dims (if available)
+  const v = document.getElementById('vid');
+  if (!v.videoWidth) return;
+  const [tw, th] = ratio.split(':').map(Number);
+  const sw = v.videoWidth, sh = v.videoHeight;
+  let cw, ch;
+  if (sw / sh > tw / th) { ch = sh; cw = Math.round(sh * tw / th) & ~1; }
+  else { cw = sw; ch = Math.round(sw * th / tw) & ~1; }
+  document.getElementById('cropW').value = cw;
+  document.getElementById('cropH').value = ch;
+  document.getElementById('cropX').value = Math.round((sw - cw) / 2);
+  document.getElementById('cropY').value = Math.round((sh - ch) / 2);
+}
+
+// ── TEXT OVERLAY ──────────────────────────────────────────────────────
+let _textPos   = 'tc';
+let _textColor = 'white';
+function setTextPos(pos) {
+  _textPos = pos;
+  document.querySelectorAll('#posBtns .pos-btn').forEach((b, i) => {
+    const positions = ['tl','tc','tr','bl','bc','br','center'];
+    b.classList.toggle('active', positions[i] === pos);
+  });
+}
+function setTextColor(color) {
+  _textColor = color;
+  document.querySelectorAll('#colorSwatches .color-swatch').forEach(b => {
+    b.classList.toggle('active', b.title.toLowerCase() === color);
+  });
+}
+
+// ── EFFECTS (Sharpen / Denoise / Vignette) ────────────────────────────
+let _activeEffect = null;
+const _effectJobIds = {};
+function setEffect(name) {
+  _activeEffect = name;
+  ['sharpen','denoise','vignette'].forEach(e => {
+    document.getElementById('efx' + e.charAt(0).toUpperCase() + e.slice(1)).classList.toggle('selected', e === name);
+    document.getElementById('efx' + e.charAt(0).toUpperCase() + e.slice(1) + 'Ctrls').style.display = e === name ? '' : 'none';
+  });
+  document.getElementById('effectBtn').style.display = '';
+}
+function applyEffect() {
+  if (!_activeEffect) return;
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  const btn = document.getElementById('effectBtn');
+  const pw  = document.getElementById('effectProgWrap');
+  const rw  = document.getElementById('effectResult');
+  let op;
+  if (_activeEffect === 'sharpen') op = { type: 'sharpen', amount: parseFloat(document.getElementById('sharpenAmt').value) / 10 };
+  if (_activeEffect === 'denoise') op = { type: 'denoise', amount: parseFloat(document.getElementById('denoiseAmt').value) / 10 };
+  if (_activeEffect === 'vignette') op = { type: 'vignette', angle: parseFloat(document.getElementById('vignetteAmt').value) / 10 };
+  btn.disabled = true; btn.classList.add('running');
+  pw.classList.add('on'); rw.classList.remove('on');
+  document.getElementById('effectProgBar').style.width = '0%';
+  document.getElementById('effectProgLabel').textContent = 'Processing…';
+  fetch(API + '/quick-edit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: videoFile.name, operation: op })
+  }).then(r => r.json()).then(d => {
+    if (!d.job_id) throw new Error(d.error || 'Failed');
+    _effectJobIds[_activeEffect] = d.job_id;
+    pollGenericJob(d.job_id, 'effectProgBar', 'effectProgLabel', 'effectProgWrap', 'effectResult',
+      btn, 'Apply Effect');
+  }).catch(err => {
+    btn.disabled = false; btn.classList.remove('running');
+    pw.classList.remove('on');
+    toast('Error: ' + err.message, 'err');
+  });
+}
+function previewEffect() {
+  const jid = _activeEffect ? _effectJobIds[_activeEffect] : null;
+  if (!jid) { toast('No result yet', 'err'); return; }
+  const v = document.getElementById('vid');
+  v.src = API + '/download/' + jid;
+  v.load(); v.play();
+  toast('Previewing effect in player', 'ok');
+}
+function downloadEffect() {
+  const jid = _activeEffect ? _effectJobIds[_activeEffect] : null;
+  if (jid) window.open(API + '/download/' + jid, '_blank');
+  else toast('No result yet', 'err');
+}
+
+// ── LOOP ──────────────────────────────────────────────────────────────
+let _loopCount = 3;
+function setLoop(n) {
+  _loopCount = n;
+  document.querySelectorAll('#loopBtns .loop-btn').forEach((b, i) => {
+    b.classList.toggle('active', [2,3,4,5][i] === n);
+  });
+}
+
+// ── GIF ───────────────────────────────────────────────────────────────
+let _gifFps = 12;
+function setGifFps(fps) {
+  _gifFps = fps;
+  document.querySelectorAll('#gifFpsBtns .gif-btn').forEach((b, i) => {
+    b.classList.toggle('active', [12,20][i] === fps);
+  });
+}
 
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
