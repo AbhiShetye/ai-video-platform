@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from pipeline.engine import run_pipeline, run_magic_erase, run_mute_audio, get_job_status, jobs
+from pipeline.engine import (run_pipeline, run_magic_erase, run_mute_audio,
+                             run_quick_edit, get_job_status, jobs)
 from routes.ai_studio import router as ai_studio_router
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -125,6 +126,26 @@ def mute_audio(req: MuteRequest):
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "processing", "progress": 0}
     threading.Thread(target=run_mute_audio, args=(path, req.segments, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+class QuickEditRequest(BaseModel):
+    filename: str
+    operation: dict   # {"type": "trim"|"speed"|"rotate"|"filter", ...params}
+
+@app.post("/quick-edit")
+def quick_edit(req: QuickEditRequest):
+    safe_name = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe_name)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    op_type = req.operation.get("type", "")
+    if op_type not in {"trim", "speed", "rotate", "filter"}:
+        return {"error": f"Unknown operation '{op_type}'"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_quick_edit,
+                     args=(path, req.operation, job_id), daemon=True).start()
     return {"job_id": job_id, "status": "processing"}
 
 

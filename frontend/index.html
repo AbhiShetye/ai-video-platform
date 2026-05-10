@@ -156,6 +156,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* video cursor in eraser mode */
 .video-wrap.eraser-mode{cursor:crosshair;}
+
+/* Object list scroll cap */
+#objList{max-height:220px;overflow-y:auto;}
+
+/* TOOLS TAB */
+.tool-card{background:#0f0f13;border:1px solid #2a2a38;border-radius:10px;padding:14px;margin-bottom:10px;}
+.tool-card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:12px;}
+.speed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.speed-btn{padding:8px 4px;background:#1e1e2e;border:1px solid #2a2a38;border-radius:7px;color:#9ca3af;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;transition:all .15s;}
+.speed-btn:hover{border-color:#818cf8;color:#818cf8;}
+.speed-btn.active{background:#1e1e3f;border-color:#818cf8;color:#818cf8;}
+.rotate-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.rot-btn{padding:8px 4px;background:#1e1e2e;border:1px solid #2a2a38;border-radius:7px;color:#9ca3af;font-size:13px;cursor:pointer;text-align:center;transition:all .15s;}
+.rot-btn:hover{border-color:#38bdf8;color:#38bdf8;}
+.fslider{width:100%;margin:6px 0 2px;}
+.fslider-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.fslider-label{font-size:11px;color:#6b7280;min-width:70px;}
+.fslider-val{font-size:11px;color:#818cf8;font-family:monospace;min-width:32px;text-align:right;}
+input[type=range].fslider{-webkit-appearance:none;height:4px;border-radius:2px;background:#2a2a38;outline:none;flex:1;}
+input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#818cf8;cursor:pointer;}
+.tool-apply-btn{width:100%;padding:11px;background:linear-gradient(135deg,#3b82f6,#818cf8);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;position:relative;overflow:hidden;margin-top:4px;}
+.tool-apply-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(129,140,248,.4);}
+.tool-apply-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.tool-apply-btn.running::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);animation:sweep 1.2s infinite;}
+.preview-btn{width:100%;padding:9px;background:#2a2a38;border:1px solid #3a3a50;border-radius:8px;color:#9ca3af;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:6px;transition:all .15s;}
+.preview-btn:hover{background:#3a3a50;color:#e8eaf0;}
+.trim-info{font-size:11px;color:#6b7280;margin-bottom:8px;}
+.trim-info span{color:#818cf8;font-weight:700;}
 </style>
 </head>
 <body>
@@ -215,6 +243,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="ptab active" id="tab-remove" onclick="switchTab('remove')">&#9888; Remove</button>
       <button class="ptab" id="tab-eraser" onclick="switchTab('eraser')">&#10024; Eraser</button>
       <button class="ptab" id="tab-audio" onclick="switchTab('audio')">&#127925; Audio</button>
+      <button class="ptab" id="tab-tools" onclick="switchTab('tools')">&#9881; Tools</button>
     </div>
 
     <!-- ══ REMOVE TAB (existing flow) ══ -->
@@ -316,6 +345,68 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     </div><!-- end #content-audio -->
 
+    <!-- ══ TOOLS TAB ══ -->
+    <div id="content-tools" style="display:none;">
+      <div style="padding:12px 16px;overflow-y:auto;">
+
+        <!-- TRIM -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#9986; Trim Video</div>
+          <div class="trim-info">Range: <span id="trimRangeInfo">set timeline handles</span></div>
+          <div class="time-row" style="margin-bottom:10px;">
+            <div class="tf"><label>Start (s)</label><input type="number" id="trimStart" value="0" min="0" step="0.1"></div>
+            <div class="tf"><label>End (s)</label><input type="number" id="trimEnd" value="5" min="0" step="0.1"></div>
+          </div>
+          <button class="tool-apply-btn" id="trimBtn" onclick="runTool('trim')">Cut to Range</button>
+          <div class="progress-wrap" id="trimProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="trimProgBar"></div></div><div class="prog-label" id="trimProgLabel"></div></div>
+          <div class="result-wrap" id="trimResult"><button class="preview-btn" onclick="previewTool('trim')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('trim')">&#11015; Download Trimmed</button></div>
+        </div>
+
+        <!-- SPEED -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#9889; Speed Control</div>
+          <div class="speed-grid" id="speedBtns">
+            <div class="speed-btn" onclick="setSpeed(0.25)">0.25×</div>
+            <div class="speed-btn" onclick="setSpeed(0.5)">0.5×</div>
+            <div class="speed-btn active" onclick="setSpeed(1)">1×</div>
+            <div class="speed-btn" onclick="setSpeed(1.5)">1.5×</div>
+            <div class="speed-btn" onclick="setSpeed(2)">2×</div>
+            <div class="speed-btn" onclick="setSpeed(4)">4×</div>
+          </div>
+          <button class="tool-apply-btn" id="speedBtn" style="margin-top:10px;" onclick="runTool('speed')">Apply Speed</button>
+          <div class="progress-wrap" id="speedProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="speedProgBar"></div></div><div class="prog-label" id="speedProgLabel"></div></div>
+          <div class="result-wrap" id="speedResult"><button class="preview-btn" onclick="previewTool('speed')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('speed')">&#11015; Download</button></div>
+        </div>
+
+        <!-- FILTERS -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#127774; Color & Filters</div>
+          <div class="fslider-row"><span class="fslider-label">Brightness</span><input type="range" class="fslider" id="fBrightness" min="-100" max="100" value="0" oninput="updateSliderVal('fBrightness','bVal')"><span class="fslider-val" id="bVal">0</span></div>
+          <div class="fslider-row"><span class="fslider-label">Contrast</span><input type="range" class="fslider" id="fContrast" min="0" max="200" value="100" oninput="updateSliderVal('fContrast','cVal')"><span class="fslider-val" id="cVal">1.0</span></div>
+          <div class="fslider-row"><span class="fslider-label">Saturation</span><input type="range" class="fslider" id="fSaturation" min="0" max="300" value="100" oninput="updateSliderVal('fSaturation','sVal')"><span class="fslider-val" id="sVal">1.0</span></div>
+          <div class="fslider-row"><span class="fslider-label">Blur</span><input type="range" class="fslider" id="fBlur" min="0" max="50" value="0" oninput="updateSliderVal('fBlur','blVal')"><span class="fslider-val" id="blVal">0</span></div>
+          <button class="tool-apply-btn" id="filterBtn" onclick="runTool('filter')">Apply Filters</button>
+          <div class="progress-wrap" id="filterProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="filterProgBar"></div></div><div class="prog-label" id="filterProgLabel"></div></div>
+          <div class="result-wrap" id="filterResult"><button class="preview-btn" onclick="previewTool('filter')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('filter')">&#11015; Download</button></div>
+        </div>
+
+        <!-- ROTATE -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#8635; Rotate &amp; Flip</div>
+          <div class="rotate-grid">
+            <div class="rot-btn" onclick="runRotate(90)" title="Rotate 90° CW">&#8635;90°</div>
+            <div class="rot-btn" onclick="runRotate(180)" title="Rotate 180°">&#8645;180</div>
+            <div class="rot-btn" onclick="runRotate(270)" title="Rotate 90° CCW">&#8634;90°</div>
+            <div class="rot-btn" onclick="runFlip('h')" title="Flip Horizontal">&#8596;</div>
+            <div class="rot-btn" onclick="runFlip('v')" title="Flip Vertical">&#8597;</div>
+          </div>
+          <div class="progress-wrap" id="rotateProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="rotateProgBar"></div></div><div class="prog-label" id="rotateProgLabel"></div></div>
+          <div class="result-wrap" id="rotateResult"><button class="preview-btn" onclick="previewTool('rotate')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('rotate')">&#11015; Download</button></div>
+        </div>
+
+      </div>
+    </div><!-- end #content-tools -->
+
   </div>
 </div>
 
@@ -416,6 +507,12 @@ function showVideo(file) {
     buildTimelineLabels();
     syncTimeline();
     startCanvas();
+    document.getElementById('detectBtn').disabled = false;
+  };
+  v.onerror = () => {
+    toast('Could not load video — try a different file', 'err');
+    document.getElementById('dropZone').style.display = '';
+    v.style.display = 'none';
   };
   v.ontimeupdate = () => {
     if (!v.duration) return;
@@ -542,7 +639,7 @@ function drawBoxes() {
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = isSel ? 3 : 2;
-    ctx.fillStyle = isSel ? color.replace(')', ',.18)').replace('rgb', 'rgba') : 'transparent';
+    ctx.fillStyle = isSel ? color : 'transparent';
 
     // Use rgba fill
     ctx.globalAlpha = isSel ? 0.25 : 0.1;
@@ -776,6 +873,18 @@ function reset() {
   document.getElementById('fileInput').value = '';
   const canvas = document.getElementById('bbox-canvas');
   canvas.width = 0; canvas.height = 0;
+  // Reset eraser / audio / tools state
+  eraserSelections = []; renderEraserList();
+  audioSegments = []; renderSegList();
+  ['trim','speed','filter','rotate'].forEach(t => {
+    const pw = document.getElementById(t+'ProgWrap');
+    const rw = document.getElementById(t+'Result');
+    if (pw) pw.classList.remove('on');
+    if (rw) rw.classList.remove('on');
+    const btn = document.getElementById(t+'Btn');
+    if (btn) { btn.disabled = false; btn.classList.remove('running'); }
+  });
+  switchTab('remove');
   setStep(1);
 }
 
@@ -787,12 +896,19 @@ setStep(1);
 let activeTab = 'remove';
 function switchTab(tab) {
   activeTab = tab;
-  ['remove','eraser','audio'].forEach(t => {
-    document.getElementById('content-' + t).style.display = t === tab ? '' : 'none';
-    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+  ['remove','eraser','audio','tools'].forEach(t => {
+    const c = document.getElementById('content-' + t);
+    const b = document.getElementById('tab-' + t);
+    if (c) c.style.display = t === tab ? '' : 'none';
+    if (b) b.classList.toggle('active', t === tab);
   });
-  const wrap = document.getElementById('videoWrap');
-  wrap.classList.toggle('eraser-mode', tab === 'eraser');
+  document.getElementById('videoWrap').classList.toggle('eraser-mode', tab === 'eraser');
+  if (tab === 'tools' && duration) {
+    document.getElementById('trimStart').value = editS.toFixed(1);
+    document.getElementById('trimEnd').value   = editE.toFixed(1);
+    const tri = document.getElementById('trimRangeInfo');
+    if (tri) tri.textContent = editS.toFixed(1) + 's → ' + editE.toFixed(1) + 's';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1053,9 +1169,142 @@ function pollGenericJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
         btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel;
         toast('Failed: ' + (d.error || 'Unknown error'), 'err');
       }
-    } catch (_) {}
+    } catch (err) {
+      log && log('[poll error]', err);
+    }
   }, 2000);
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TOOLS TAB
+// ══════════════════════════════════════════════════════════════════════════════
+const toolJobs = { trim: null, speed: null, filter: null, rotate: null };
+let selectedSpeed = 1.0;
+
+function setSpeed(f) {
+  selectedSpeed = f;
+  document.querySelectorAll('.speed-btn').forEach(b => {
+    b.classList.toggle('active', parseFloat(b.textContent) === f);
+  });
+}
+
+function updateSliderVal(id, valId) {
+  const v = parseFloat(document.getElementById(id).value);
+  const el = document.getElementById(valId);
+  if (id === 'fContrast' || id === 'fSaturation') {
+    el.textContent = (v / 100).toFixed(1);
+  } else if (id === 'fBlur') {
+    el.textContent = (v / 10).toFixed(1);
+  } else {
+    el.textContent = v;
+  }
+}
+
+function _getToolOp(type) {
+  if (type === 'trim') {
+    const s = parseFloat(document.getElementById('trimStart').value) || 0;
+    const e = parseFloat(document.getElementById('trimEnd').value)   || duration;
+    return { type: 'trim', start: s, end: e };
+  }
+  if (type === 'speed') {
+    return { type: 'speed', factor: selectedSpeed };
+  }
+  if (type === 'filter') {
+    return {
+      type:       'filter',
+      brightness: parseFloat(document.getElementById('fBrightness').value) / 100,
+      contrast:   parseFloat(document.getElementById('fContrast').value)   / 100,
+      saturation: parseFloat(document.getElementById('fSaturation').value) / 100,
+      blur:       parseFloat(document.getElementById('fBlur').value)       / 10,
+    };
+  }
+  return null;
+}
+
+async function runTool(type) {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  const op = _getToolOp(type);
+  if (!op) return;
+  const btn = document.getElementById(type + 'Btn');
+  const pw  = document.getElementById(type + 'ProgWrap');
+  const rw  = document.getElementById(type + 'Result');
+  btn.disabled = true; btn.classList.add('running');
+  pw.classList.add('on'); rw.classList.remove('on');
+  document.getElementById(type + 'ProgBar').style.width = '0%';
+  document.getElementById(type + 'ProgLabel').textContent = 'Processing…';
+  try {
+    const r = await fetch(API + '/quick-edit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: videoFile.name, operation: op })
+    });
+    const d = await r.json();
+    if (!d.job_id) throw new Error(d.error || 'Failed to start');
+    toolJobs[type] = d.job_id;
+    const origLabel = btn.textContent.replace('…','').trim() || type.charAt(0).toUpperCase()+type.slice(1);
+    pollGenericJob(d.job_id,
+      type+'ProgBar', type+'ProgLabel', type+'ProgWrap', type+'Result',
+      btn, origLabel
+    );
+  } catch (err) {
+    btn.disabled = false; btn.classList.remove('running');
+    pw.classList.remove('on');
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+function runRotate(angle) {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  _sendRotate({ type: 'rotate', angle });
+}
+function runFlip(dir) {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  _sendRotate({ type: 'rotate', angle: 0, flip: dir });
+}
+async function _sendRotate(op) {
+  const pw = document.getElementById('rotateProgWrap');
+  const rw = document.getElementById('rotateResult');
+  pw.classList.add('on'); rw.classList.remove('on');
+  document.getElementById('rotateProgBar').style.width = '0%';
+  document.getElementById('rotateProgLabel').textContent = 'Processing…';
+  try {
+    const r = await fetch(API + '/quick-edit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: videoFile.name, operation: op })
+    });
+    const d = await r.json();
+    if (!d.job_id) throw new Error(d.error || 'Failed');
+    toolJobs.rotate = d.job_id;
+    pollGenericJob(d.job_id,
+      'rotateProgBar', 'rotateProgLabel', 'rotateProgWrap', 'rotateResult',
+      { disabled: false, classList: { add(){}, remove(){} }, textContent: '' },
+      ''
+    );
+  } catch (err) {
+    pw.classList.remove('on');
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+function downloadTool(type) {
+  const jid = toolJobs[type];
+  if (jid) window.open(API + '/download/' + jid, '_blank');
+  else toast('No result yet', 'err');
+}
+
+function previewTool(type) {
+  const jid = toolJobs[type];
+  if (!jid) { toast('No result yet', 'err'); return; }
+  const v = document.getElementById('vid');
+  v.src = API + '/download/' + jid;
+  v.load(); v.play();
+  toast('Previewing edited result in player', 'ok');
+}
+
+// Keep trim range synced with timeline
+const _origSync = syncTimeline;
+// (syncTimeline already updates trimStart/trimEnd via switchTab, good enough)
 
 </script>
 </body>

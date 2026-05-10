@@ -428,6 +428,128 @@ def get_job_status(job_id: str):
     return jobs.get(job_id, {"status": "not found"})
 
 
+# ── Quick Edit (FFmpeg-based tools: trim, speed, rotate, filters) ─────────────
+
+def _build_atempo(factor: float) -> str:
+    """Build atempo filter chain. FFmpeg atempo only accepts 0.5–2.0 per node."""
+    filters = []
+    f = factor
+    while f < 0.5:
+        filters.append("atempo=0.5")
+        f /= 0.5
+    while f > 2.0:
+        filters.append("atempo=2.0")
+        f /= 2.0
+    filters.append(f"atempo={f:.4f}")
+    return ",".join(filters)
+
+
+def run_quick_edit(video_path: str, operation: dict, job_id: str = None):
+    """
+    Fast FFmpeg-based editing.  Handles: trim | speed | rotate | filter.
+    operation dict keys depend on type — see each branch below.
+    """
+    if job_id is None:
+        job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    log.info("=== QUICK EDIT %s  op=%s ===", job_id, operation.get("type"))
+
+    try:
+        out_dir = os.path.join(_STORAGE, job_id, "output")
+        os.makedirs(out_dir, exist_ok=True)
+        final   = os.path.join(out_dir, "final.mp4")
+        op_type = operation.get("type", "")
+
+        jobs[job_id]["progress"] = 20
+
+        if op_type == "trim":
+            start = float(operation.get("start", 0))
+            end   = float(operation.get("end", 0))
+            if end <= start:
+                raise ValueError("End must be after start")
+            _ffmpeg(
+                "-ss", f"{start:.3f}", "-to", f"{end:.3f}",
+                "-i", video_path,
+                "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "192k",
+                final, label="trim"
+            )
+
+        elif op_type == "speed":
+            factor = max(0.25, min(4.0, float(operation.get("factor", 1.0))))
+            pts    = 1.0 / factor
+            vf     = (f"setpts={pts:.6f}*PTS,"
+                      "scale=trunc(iw/2)*2:trunc(ih/2)*2")
+            af     = _build_atempo(factor)
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", vf, "-af", af,
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "192k",
+                final, label="speed"
+            )
+
+        elif op_type == "rotate":
+            angle = int(operation.get("angle", 0)) % 360
+            flip  = operation.get("flip", "")
+            vf_parts = []
+            if angle == 90:
+                vf_parts.append("transpose=1")
+            elif angle == 180:
+                vf_parts.append("transpose=2,transpose=2")
+            elif angle == 270:
+                vf_parts.append("transpose=2")
+            if flip == "h":
+                vf_parts.append("hflip")
+            elif flip == "v":
+                vf_parts.append("vflip")
+            vf_parts.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", ",".join(vf_parts),
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                final, label="rotate"
+            )
+
+        elif op_type == "filter":
+            brightness  = max(-1.0, min(1.0, float(operation.get("brightness", 0))))
+            contrast    = max(0.0,  min(3.0, float(operation.get("contrast",   1.0))))
+            saturation  = max(0.0,  min(3.0, float(operation.get("saturation", 1.0))))
+            blur        = max(0.0,  min(10.0, float(operation.get("blur",      0))))
+            vf_parts    = [
+                f"eq=brightness={brightness:.3f}:"
+                f"contrast={contrast:.3f}:"
+                f"saturation={saturation:.3f}"
+            ]
+            if blur > 0.1:
+                vf_parts.append(f"gblur=sigma={blur:.1f}")
+            vf_parts.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", ",".join(vf_parts),
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                final, label="filter"
+            )
+
+        else:
+            raise ValueError(f"Unknown operation type: {op_type!r}")
+
+        jobs[job_id]["progress"] = 90
+        jobs[job_id].update({"status": "completed", "output": final, "progress": 100})
+        log.info("=== QUICK EDIT %s DONE → %s ===", job_id, final)
+
+    except Exception as exc:
+        import traceback
+        tb = traceback.format_exc()
+        log.error("=== QUICK EDIT %s FAILED ===\n%s", job_id, tb)
+        jobs[job_id].update({"status": "failed", "error": str(exc), "trace": tb})
+
+    return job_id
+
+
 # ── Magic Eraser ──────────────────────────────────────────────────────────────
 
 def _combined_mask(frame_path: str, bboxes: list) -> np.ndarray:
