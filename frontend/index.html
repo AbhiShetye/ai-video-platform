@@ -271,15 +271,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <button class="detect-btn" style="margin-top:8px;" id="eraseClearBtn" onclick="eraseClear()" disabled>&#10006; Clear Selection</button>
       </div>
 
-      <div class="panel-sec" id="eraseRangeSec" style="display:none;">
-        <div class="panel-label">Erase from (seconds)</div>
-        <div class="time-row">
-          <div class="tf"><label>Start</label><input type="number" id="eStart" value="0" min="0" step="0.1"></div>
-          <div class="tf"><label>End</label><input type="number" id="eEnd" value="5" min="0" step="0.1"></div>
-        </div>
-      </div>
-
       <div class="panel-sec" id="eraseActionSec" style="display:none;">
+        <div style="font-size:11px;color:#6b7280;margin-bottom:10px;">&#9201; Erasing: <span id="eraseRangeInfo" style="color:#818cf8;font-weight:700;">full video</span><br><span style="color:#4b5563;">Drag the timeline handles below the video to adjust range.</span></div>
         <button class="erase-btn" id="eraseBtn" onclick="runMagicErase()">&#10024; Erase Selected Objects</button>
         <div style="height:12px;"></div>
         <div class="progress-wrap" id="eraseProgWrap">
@@ -416,7 +409,8 @@ function showVideo(file) {
     editE = Math.min(duration, 10);
     document.getElementById('tStart').value = editS.toFixed(1);
     document.getElementById('tEnd').value = editE.toFixed(1);
-    document.getElementById('eEnd').value = duration.toFixed(1);
+    const ri = document.getElementById('eraseRangeInfo');
+    if (ri) ri.textContent = '0.0s → ' + duration.toFixed(1) + 's';
     document.getElementById('vidControls').style.display = 'flex';
     document.getElementById('timeline').style.display = 'block';
     buildTimelineLabels();
@@ -461,6 +455,8 @@ function syncTimeline() {
   editS = Math.max(0, parseFloat(document.getElementById('tStart').value) || 0);
   editE = Math.min(duration, parseFloat(document.getElementById('tEnd').value) || duration);
   if (editE <= editS) editE = Math.min(duration, editS + 1);
+  const ri = document.getElementById('eraseRangeInfo');
+  if (ri) ri.textContent = editS.toFixed(1) + 's → ' + editE.toFixed(1) + 's';
   const s = (editS / duration) * 100;
   const e = (editE / duration) * 100;
   document.getElementById('tlL').style.left = s + '%';
@@ -872,7 +868,6 @@ function renderEraserList() {
   if (!eraserSelections.length) {
     list.innerHTML = '<div class="erase-none">Click objects in the video to select them</div>';
     clearBtn.disabled = true;
-    document.getElementById('eraseRangeSec').style.display = 'none';
     document.getElementById('eraseActionSec').style.display = 'none';
     return;
   }
@@ -887,7 +882,6 @@ function renderEraserList() {
   clearBtn.disabled = false;
   // Show range + action sections only when video is loaded
   if (videoFile) {
-    document.getElementById('eraseRangeSec').style.display = '';
     document.getElementById('eraseActionSec').style.display = '';
     document.getElementById('eraseResultWrap').classList.remove('on');
     document.getElementById('eraseProgWrap').classList.remove('on');
@@ -911,9 +905,9 @@ async function runMagicErase() {
   if (!videoFile) { toast('Upload a video first', 'err'); return; }
   if (!eraserSelections.length) { toast('Select at least one object', 'err'); return; }
 
-  const s = parseFloat(document.getElementById('eStart').value) || 0;
-  const e = parseFloat(document.getElementById('eEnd').value) || duration;
-  if (e <= s) { toast('End must be after start', 'err'); return; }
+  const s = editS || 0;
+  const e = editE || duration;
+  if (e <= s) { toast('End must be after start — adjust the timeline', 'err'); return; }
 
   const btn = document.getElementById('eraseBtn');
   btn.disabled = true; btn.classList.add('running'); btn.textContent = 'Processing…';
