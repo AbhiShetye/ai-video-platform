@@ -50,6 +50,7 @@ async def upload_video(file: UploadFile = File(...)):
 
 class DetectRequest(BaseModel):
     filename: str
+    full_scan: bool = False
 
 @app.post("/detect")
 def detect(req: DetectRequest):
@@ -58,7 +59,7 @@ def detect(req: DetectRequest):
     if not os.path.exists(path):
         return {"objects": [], "error": "File not found"}
     from vision.detection import detect_first_frame
-    return {"objects": detect_first_frame(path)}
+    return {"objects": detect_first_frame(path, full_scan=req.full_scan)}
 
 
 class EditRequest(BaseModel):
@@ -140,7 +141,7 @@ def quick_edit(req: QuickEditRequest):
     if not os.path.exists(path):
         return {"error": "File not found"}
     op_type = req.operation.get("type", "")
-    if op_type not in {"trim", "speed", "rotate", "filter"}:
+    if op_type not in {"trim", "speed", "rotate", "filter", "reverse", "fade", "aspect", "compress"}:
         return {"error": f"Unknown operation '{op_type}'"}
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "processing", "progress": 0}

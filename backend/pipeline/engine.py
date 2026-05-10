@@ -534,6 +534,81 @@ def run_quick_edit(video_path: str, operation: dict, job_id: str = None):
                 final, label="filter"
             )
 
+        elif op_type == "reverse":
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", "reverse,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                "-af", "areverse",
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "192k",
+                final, label="reverse"
+            )
+
+        elif op_type == "fade":
+            fade_in  = max(0.0, min(10.0, float(operation.get("fade_in",  1.0))))
+            fade_out = max(0.0, min(10.0, float(operation.get("fade_out", 1.0))))
+            _, vid_dur, _ = _video_info(video_path)
+            probe_fps = 25.0  # safe default for fade frame calculation
+            fi_frames = int(fade_in  * probe_fps)
+            fo_start  = max(0.0, vid_dur - fade_out)
+            vf_parts  = ["scale=trunc(iw/2)*2:trunc(ih/2)*2"]
+            af_parts  = []
+            if fade_in > 0:
+                vf_parts.insert(0, f"fade=t=in:st=0:d={fade_in:.3f}")
+                af_parts.append(f"afade=t=in:st=0:d={fade_in:.3f}")
+            if fade_out > 0:
+                vf_parts.insert(-1, f"fade=t=out:st={fo_start:.3f}:d={fade_out:.3f}")
+                af_parts.append(f"afade=t=out:st={fo_start:.3f}:d={fade_out:.3f}")
+            cmd = ["-i", video_path,
+                   "-vf", ",".join(vf_parts),
+                   "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p"]
+            if af_parts:
+                cmd += ["-af", ",".join(af_parts), "-c:a", "aac", "-b:a", "192k"]
+            else:
+                cmd += ["-c:a", "copy"]
+            _ffmpeg(*cmd, final, label="fade")
+
+        elif op_type == "aspect":
+            ratio = str(operation.get("ratio", "16:9"))
+            target = {"16:9": (16, 9), "9:16": (9, 16), "1:1": (1, 1), "4:3": (4, 3)}.get(ratio, (16, 9))
+            tw, th = target
+            # scale to fit inside target aspect, pad the rest with black
+            # vf: scale to fit with black padding
+            vf = (f"scale=iw*min({tw}*ih\\,{th}*iw)/({th}*iw):"
+                  f"ih*min({tw}*ih\\,{th}*iw)/({th}*iw),"
+                  f"pad={tw}*max(iw/{tw}\\,ih/{th}):"
+                  f"{th}*max(iw/{tw}\\,ih/{th}):(ow-iw)/2:(oh-ih)/2:black,"
+                  f"scale=trunc(ow/2)*2:trunc(oh/2)*2")
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", vf,
+                "-c:v", "libx264", "-crf", str(CRF), "-pix_fmt", "yuv420p",
+                "-c:a", "copy",
+                final, label="aspect"
+            )
+
+        elif op_type == "compress":
+            preset_map = {
+                "high":   (18, None),
+                "medium": (23, None),
+                "web":    (26, "1280:-2"),
+                "small":  (30, "854:-2"),
+            }
+            preset = str(operation.get("preset", "medium"))
+            crf_v, scale = preset_map.get(preset, (23, None))
+            vf_parts = []
+            if scale:
+                vf_parts.append(f"scale={scale}")
+            vf_parts.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
+            _ffmpeg(
+                "-i", video_path,
+                "-vf", ",".join(vf_parts),
+                "-c:v", "libx264", "-crf", str(crf_v), "-pix_fmt", "yuv420p",
+                "-preset", "slow",
+                "-c:a", "aac", "-b:a", "128k",
+                final, label="compress"
+            )
+
         else:
             raise ValueError(f"Unknown operation type: {op_type!r}")
 

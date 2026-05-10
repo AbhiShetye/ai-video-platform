@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FrameAI — Object Removal</title>
+<title>FrameAI — AI Video Editor</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f13;color:#e8eaf0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -49,7 +49,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tl-labels{position:absolute;bottom:4px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:10px;color:#4b5563;font-family:monospace;}
 
 /* RIGHT PANEL */
-.panel{width:300px;background:#18181f;border-left:1px solid #2a2a38;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.panel{width:320px;background:#18181f;border-left:1px solid #2a2a38;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
 .panel-sec{padding:16px;border-bottom:1px solid #2a2a38;}
 .panel-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#6b7280;margin-bottom:10px;}
 
@@ -184,6 +184,45 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:14
 .preview-btn:hover{background:#3a3a50;color:#e8eaf0;}
 .trim-info{font-size:11px;color:#6b7280;margin-bottom:8px;}
 .trim-info span{color:#818cf8;font-weight:700;}
+
+/* CONFIDENCE FILTER */
+.conf-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.conf-row label{font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;}
+.conf-row input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:#2a2a38;outline:none;}
+.conf-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#818cf8;cursor:pointer;}
+.conf-val{font-size:11px;color:#818cf8;font-family:monospace;min-width:28px;text-align:right;}
+.obj-count{font-size:10px;color:#4b5563;margin-bottom:6px;}
+.obj-conf.green{color:#34d399;}
+.obj-conf.yellow{color:#fbbf24;}
+.obj-conf.red{color:#f87171;}
+
+/* FULL-SCAN ROW */
+.scan-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.scan-row .detect-btn{flex:1;margin-top:0;}
+.scan-toggle{display:flex;align-items:center;gap:5px;font-size:11px;color:#6b7280;cursor:pointer;white-space:nowrap;padding:7px 10px;background:#0f0f13;border:1px solid #2a2a38;border-radius:8px;transition:all .15s;}
+.scan-toggle:hover{border-color:#818cf8;color:#9ca3af;}
+.scan-toggle input{accent-color:#818cf8;width:13px;height:13px;cursor:pointer;}
+
+/* PRESET CHIPS */
+.preset-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.preset-chip{padding:4px 9px;background:#1e1e2e;border:1px solid #2a2a38;border-radius:20px;font-size:11px;font-weight:600;color:#6b7280;cursor:pointer;transition:all .15s;}
+.preset-chip:hover{border-color:#818cf8;color:#9ca3af;}
+.preset-chip.active{background:#1e1e3f;border-color:#818cf8;color:#818cf8;}
+
+/* ASPECT / COMPRESS GRIDS */
+.aspect-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px;}
+.aspect-btn{padding:8px 4px;background:#1e1e2e;border:1px solid #2a2a38;border-radius:7px;color:#6b7280;font-size:10px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.3;}
+.aspect-btn:hover{border-color:#38bdf8;color:#38bdf8;}
+.aspect-btn.active{background:#0d2233;border-color:#38bdf8;color:#38bdf8;}
+.compress-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:10px;}
+.compress-btn{padding:9px 6px;background:#1e1e2e;border:1px solid #2a2a38;border-radius:7px;color:#6b7280;font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.3;}
+.compress-btn:hover{border-color:#34d399;color:#34d399;}
+.compress-btn.active{background:#0d2117;border-color:#34d399;color:#34d399;}
+
+/* FADE SLIDERS */
+.fade-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.fade-label{font-size:11px;color:#6b7280;min-width:68px;}
+.fade-val{font-size:11px;color:#818cf8;font-family:monospace;min-width:28px;text-align:right;}
 </style>
 </head>
 <body>
@@ -240,7 +279,7 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:14
 
     <!-- TAB BAR -->
     <div class="panel-tabs">
-      <button class="ptab active" id="tab-remove" onclick="switchTab('remove')">&#9888; Remove</button>
+      <button class="ptab active" id="tab-remove" onclick="switchTab('remove')">&#9986; Remove</button>
       <button class="ptab" id="tab-eraser" onclick="switchTab('eraser')">&#10024; Eraser</button>
       <button class="ptab" id="tab-audio" onclick="switchTab('audio')">&#127925; Audio</button>
       <button class="ptab" id="tab-tools" onclick="switchTab('tools')">&#9881; Tools</button>
@@ -252,8 +291,17 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:14
       <!-- OBJECTS -->
       <div class="panel-sec">
         <div class="panel-label">Detected Objects</div>
+        <div class="conf-row">
+          <label>Min Confidence</label>
+          <input type="range" id="confThreshold" min="0" max="95" value="40" oninput="onConfChange()">
+          <span class="conf-val" id="confVal">40%</span>
+        </div>
+        <div class="obj-count" id="objCount"></div>
         <div id="objList"><div class="obj-none">Upload a video to start</div></div>
-        <button class="detect-btn" id="detectBtn" onclick="runDetect()" disabled>&#8635; Scan for Objects</button>
+        <div class="scan-row">
+          <button class="detect-btn" id="detectBtn" onclick="runDetect()" disabled>&#8635; Scan</button>
+          <label class="scan-toggle" title="Scan entire video (slower)"><input type="checkbox" id="fullScanChk"> Full Video</label>
+        </div>
       </div>
 
       <!-- SELECTED -->
@@ -381,10 +429,19 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:14
         <!-- FILTERS -->
         <div class="tool-card">
           <div class="tool-card-title">&#127774; Color & Filters</div>
-          <div class="fslider-row"><span class="fslider-label">Brightness</span><input type="range" class="fslider" id="fBrightness" min="-100" max="100" value="0" oninput="updateSliderVal('fBrightness','bVal')"><span class="fslider-val" id="bVal">0</span></div>
-          <div class="fslider-row"><span class="fslider-label">Contrast</span><input type="range" class="fslider" id="fContrast" min="0" max="200" value="100" oninput="updateSliderVal('fContrast','cVal')"><span class="fslider-val" id="cVal">1.0</span></div>
-          <div class="fslider-row"><span class="fslider-label">Saturation</span><input type="range" class="fslider" id="fSaturation" min="0" max="300" value="100" oninput="updateSliderVal('fSaturation','sVal')"><span class="fslider-val" id="sVal">1.0</span></div>
-          <div class="fslider-row"><span class="fslider-label">Blur</span><input type="range" class="fslider" id="fBlur" min="0" max="50" value="0" oninput="updateSliderVal('fBlur','blVal')"><span class="fslider-val" id="blVal">0</span></div>
+          <div class="preset-chips" id="colorPresets">
+            <div class="preset-chip active" onclick="setColorPreset('original')">Original</div>
+            <div class="preset-chip" onclick="setColorPreset('vivid')">Vivid</div>
+            <div class="preset-chip" onclick="setColorPreset('cinematic')">Cinematic</div>
+            <div class="preset-chip" onclick="setColorPreset('vintage')">Vintage</div>
+            <div class="preset-chip" onclick="setColorPreset('bw')">B&W</div>
+            <div class="preset-chip" onclick="setColorPreset('warm')">Warm</div>
+            <div class="preset-chip" onclick="setColorPreset('cool')">Cool</div>
+          </div>
+          <div class="fslider-row"><span class="fslider-label">Brightness</span><input type="range" class="fslider" id="fBrightness" min="-100" max="100" value="0" oninput="updateSliderVal('fBrightness','bVal');clearPreset()"><span class="fslider-val" id="bVal">0</span></div>
+          <div class="fslider-row"><span class="fslider-label">Contrast</span><input type="range" class="fslider" id="fContrast" min="0" max="200" value="100" oninput="updateSliderVal('fContrast','cVal');clearPreset()"><span class="fslider-val" id="cVal">1.0</span></div>
+          <div class="fslider-row"><span class="fslider-label">Saturation</span><input type="range" class="fslider" id="fSaturation" min="0" max="300" value="100" oninput="updateSliderVal('fSaturation','sVal');clearPreset()"><span class="fslider-val" id="sVal">1.0</span></div>
+          <div class="fslider-row"><span class="fslider-label">Blur</span><input type="range" class="fslider" id="fBlur" min="0" max="50" value="0" oninput="updateSliderVal('fBlur','blVal');clearPreset()"><span class="fslider-val" id="blVal">0</span></div>
           <button class="tool-apply-btn" id="filterBtn" onclick="runTool('filter')">Apply Filters</button>
           <div class="progress-wrap" id="filterProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="filterProgBar"></div></div><div class="prog-label" id="filterProgLabel"></div></div>
           <div class="result-wrap" id="filterResult"><button class="preview-btn" onclick="previewTool('filter')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('filter')">&#11015; Download</button></div>
@@ -402,6 +459,55 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:14
           </div>
           <div class="progress-wrap" id="rotateProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="rotateProgBar"></div></div><div class="prog-label" id="rotateProgLabel"></div></div>
           <div class="result-wrap" id="rotateResult"><button class="preview-btn" onclick="previewTool('rotate')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('rotate')">&#11015; Download</button></div>
+        </div>
+
+        <!-- REVERSE -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#9194; Reverse Video</div>
+          <div class="trim-info">Play the video backwards — audio is also reversed.</div>
+          <button class="tool-apply-btn" id="reverseBtn" onclick="runTool('reverse')">&#9194; Reverse Video</button>
+          <div class="progress-wrap" id="reverseProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="reverseProgBar"></div></div><div class="prog-label" id="reverseProgLabel"></div></div>
+          <div class="result-wrap" id="reverseResult"><button class="preview-btn" onclick="previewTool('reverse')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('reverse')">&#11015; Download</button></div>
+        </div>
+
+        <!-- FADE -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#127774; Fade In / Out</div>
+          <div class="fade-row"><span class="fade-label">Fade In (s)</span><input type="range" class="fslider" id="fadeIn" min="0" max="50" value="10" oninput="updateFadeVal('fadeIn','fadeInVal')"><span class="fade-val" id="fadeInVal">1.0s</span></div>
+          <div class="fade-row"><span class="fade-label">Fade Out (s)</span><input type="range" class="fslider" id="fadeOut" min="0" max="50" value="10" oninput="updateFadeVal('fadeOut','fadeOutVal')"><span class="fade-val" id="fadeOutVal">1.0s</span></div>
+          <button class="tool-apply-btn" id="fadeBtn" onclick="runTool('fade')">Apply Fade</button>
+          <div class="progress-wrap" id="fadeProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="fadeProgBar"></div></div><div class="prog-label" id="fadeProgLabel"></div></div>
+          <div class="result-wrap" id="fadeResult"><button class="preview-btn" onclick="previewTool('fade')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('fade')">&#11015; Download</button></div>
+        </div>
+
+        <!-- ASPECT RATIO -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#9645; Aspect Ratio</div>
+          <div class="trim-info">Add letterbox/pillarbox bars to fit a target aspect.</div>
+          <div class="aspect-grid" id="aspectBtns">
+            <div class="aspect-btn active" onclick="setAspect('16:9')">16:9<br><span style="font-weight:400;color:#4b5563">YouTube</span></div>
+            <div class="aspect-btn" onclick="setAspect('9:16')">9:16<br><span style="font-weight:400;color:#4b5563">TikTok</span></div>
+            <div class="aspect-btn" onclick="setAspect('1:1')">1:1<br><span style="font-weight:400;color:#4b5563">Square</span></div>
+            <div class="aspect-btn" onclick="setAspect('4:3')">4:3<br><span style="font-weight:400;color:#4b5563">Classic</span></div>
+          </div>
+          <button class="tool-apply-btn" id="aspectBtn" onclick="runTool('aspect')">Apply Aspect Ratio</button>
+          <div class="progress-wrap" id="aspectProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="aspectProgBar"></div></div><div class="prog-label" id="aspectProgLabel"></div></div>
+          <div class="result-wrap" id="aspectResult"><button class="preview-btn" onclick="previewTool('aspect')">&#9654; Preview Result</button><button class="dl-btn" onclick="downloadTool('aspect')">&#11015; Download</button></div>
+        </div>
+
+        <!-- EXPORT / COMPRESS -->
+        <div class="tool-card">
+          <div class="tool-card-title">&#128190; Export &amp; Compress</div>
+          <div class="trim-info">Re-encode with quality/size trade-off.</div>
+          <div class="compress-grid" id="compressBtns">
+            <div class="compress-btn" onclick="setCompress('high')">&#9733; High Quality<br><span style="font-weight:400;font-size:10px;color:#4b5563">Largest file</span></div>
+            <div class="compress-btn active" onclick="setCompress('medium')">&#9734; Medium<br><span style="font-weight:400;font-size:10px;color:#4b5563">Balanced</span></div>
+            <div class="compress-btn" onclick="setCompress('web')">&#127760; Web 720p<br><span style="font-weight:400;font-size:10px;color:#4b5563">Streaming</span></div>
+            <div class="compress-btn" onclick="setCompress('small')">&#128190; Small 480p<br><span style="font-weight:400;font-size:10px;color:#4b5563">Smallest</span></div>
+          </div>
+          <button class="tool-apply-btn" id="compressBtn" onclick="runTool('compress')">Export Video</button>
+          <div class="progress-wrap" id="compressProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="compressProgBar"></div></div><div class="prog-label" id="compressProgLabel"></div></div>
+          <div class="result-wrap" id="compressResult"><button class="dl-btn" onclick="downloadTool('compress')">&#11015; Download Exported</button></div>
         </div>
 
       </div>
@@ -698,15 +804,17 @@ document.getElementById('videoWrap').addEventListener('click', e => {
 async function runDetect() {
   if (!videoFile) return;
   const btn = document.getElementById('detectBtn');
+  const fullScan = document.getElementById('fullScanChk').checked;
   btn.disabled = true;
-  btn.innerHTML = '<div class="spin"></div> Scanning...';
-  document.getElementById('objList').innerHTML = '<div class="obj-none">Scanning for objects...</div>';
+  btn.innerHTML = '<div class="spin"></div> ' + (fullScan ? 'Deep Scanning...' : 'Scanning...');
+  document.getElementById('objList').innerHTML = '<div class="obj-none">' + (fullScan ? 'Deep scanning full video...' : 'Scanning for objects...') + '</div>';
+  document.getElementById('objCount').textContent = '';
 
   try {
     const r = await fetch(API + '/detect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: videoFile.name })
+      body: JSON.stringify({ filename: videoFile.name, full_scan: fullScan })
     });
     const d = await r.json();
     objects = d.objects || [];
@@ -722,23 +830,45 @@ async function runDetect() {
     document.getElementById('objList').innerHTML = '<div class="obj-none" style="color:#f87171;">Detection error. Is the server running?</div>';
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '&#8635; Scan for Objects';
+    btn.innerHTML = '&#8635; Scan';
   }
+}
+
+function onConfChange() {
+  const v = parseInt(document.getElementById('confThreshold').value);
+  document.getElementById('confVal').textContent = v + '%';
+  renderObjects();
 }
 
 function renderObjects() {
   const list = document.getElementById('objList');
+  const threshold = parseInt(document.getElementById('confThreshold').value) / 100;
+  const visible = objects.filter(o => o.confidence >= threshold);
+
+  const countEl = document.getElementById('objCount');
+  if (objects.length) {
+    countEl.textContent = objects.length + ' detected · ' + visible.length + ' shown at ' + Math.round(threshold * 100) + '%+';
+  } else {
+    countEl.textContent = '';
+  }
+
   if (!objects.length) {
     list.innerHTML = '<div class="obj-none">No objects found. Try scanning again.</div>';
     return;
   }
+  if (!visible.length) {
+    list.innerHTML = '<div class="obj-none">Lower the confidence threshold to see detections.</div>';
+    return;
+  }
   list.innerHTML = '';
-  objects.forEach((obj, i) => {
+  visible.forEach((obj, i) => {
+    const pct = Math.round(obj.confidence * 100);
+    const confClass = pct >= 70 ? 'green' : pct >= 40 ? 'yellow' : 'red';
     const el = document.createElement('div');
     el.className = 'obj-item' + (selected === obj ? ' selected' : '');
     el.innerHTML = `<div class="obj-dot" style="background:${COLORS[i % COLORS.length]}"></div>
       <div class="obj-name">${obj.label}</div>
-      <div class="obj-conf">${Math.round(obj.confidence * 100)}%</div>`;
+      <div class="obj-conf ${confClass}">${pct}%</div>`;
     el.onclick = () => selectObject(obj);
     list.appendChild(el);
   });
@@ -813,6 +943,7 @@ const PROG_LABELS = {
 
 function pollJob() {
   if (pollTimer) clearInterval(pollTimer);
+  const startTime = Date.now();
   pollTimer = setInterval(async () => {
     try {
       const r = await fetch(API + '/status/' + jobId);
@@ -820,7 +951,8 @@ function pollJob() {
       const pct = d.progress || 0;
       document.getElementById('progBar').style.width = pct + '%';
       const key = Object.keys(PROG_LABELS).reverse().find(k => pct >= +k);
-      if (key) document.getElementById('progLabel').textContent = PROG_LABELS[key];
+      const baseLabel = key ? PROG_LABELS[key] : 'Processing...';
+      document.getElementById('progLabel').textContent = baseLabel + ' · ' + _fmtElapsed(Date.now() - startTime);
 
       if (d.status === 'completed') {
         clearInterval(pollTimer);
@@ -876,7 +1008,7 @@ function reset() {
   // Reset eraser / audio / tools state
   eraserSelections = []; renderEraserList();
   audioSegments = []; renderSegList();
-  ['trim','speed','filter','rotate'].forEach(t => {
+  ['trim','speed','filter','rotate','reverse','fade','aspect','compress'].forEach(t => {
     const pw = document.getElementById(t+'ProgWrap');
     const rw = document.getElementById(t+'Result');
     if (pw) pw.classList.remove('on');
@@ -884,6 +1016,9 @@ function reset() {
     const btn = document.getElementById(t+'Btn');
     if (btn) { btn.disabled = false; btn.classList.remove('running'); }
   });
+  Object.keys(toolJobs).forEach(k => toolJobs[k] = null);
+  document.getElementById('objCount').textContent = '';
+  setColorPreset('original');
   switchTab('remove');
   setStep(1);
 }
@@ -1139,11 +1274,17 @@ function downloadMute() {
 // ══════════════════════════════════════════════════════════════════════════════
 // GENERIC JOB POLLER (shared by eraser + audio)
 // ══════════════════════════════════════════════════════════════════════════════
+function _fmtElapsed(ms) {
+  const s = Math.floor(ms / 1000);
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
 function pollGenericJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
   // Store job id per feature
   if (barId.startsWith('erase')) eraserJobId = jid;
   if (barId.startsWith('mute'))  muteJobId   = jid;
 
+  const startTime = Date.now();
   const timer = setInterval(async () => {
     try {
       const r = await fetch(API + '/status/' + jid);
@@ -1151,12 +1292,14 @@ function pollGenericJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
       const pct = d.progress || 0;
       document.getElementById(barId).style.width = pct + '%';
       const key = Object.keys(PROG_LABELS).reverse().find(k => pct >= +k);
-      if (key) document.getElementById(labelId).textContent = PROG_LABELS[key];
+      const baseLabel = key ? PROG_LABELS[key] : 'Processing...';
+      const elapsed = _fmtElapsed(Date.now() - startTime);
+      document.getElementById(labelId).textContent = baseLabel + ' · ' + elapsed;
 
       if (d.status === 'completed') {
         clearInterval(timer);
         document.getElementById(barId).style.width = '100%';
-        document.getElementById(labelId).textContent = 'Done!';
+        document.getElementById(labelId).textContent = 'Done! · ' + elapsed;
         setTimeout(() => {
           document.getElementById(wrapId).classList.remove('on');
           document.getElementById(resultId).classList.add('on');
@@ -1169,17 +1312,17 @@ function pollGenericJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
         btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel;
         toast('Failed: ' + (d.error || 'Unknown error'), 'err');
       }
-    } catch (err) {
-      log && log('[poll error]', err);
-    }
+    } catch (err) { /* network hiccup — keep polling */ }
   }, 2000);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // TOOLS TAB
 // ══════════════════════════════════════════════════════════════════════════════
-const toolJobs = { trim: null, speed: null, filter: null, rotate: null };
+const toolJobs = { trim: null, speed: null, filter: null, rotate: null, reverse: null, fade: null, aspect: null, compress: null };
 let selectedSpeed = 1.0;
+let selectedAspect = '16:9';
+let selectedCompress = 'medium';
 
 function setSpeed(f) {
   selectedSpeed = f;
@@ -1218,7 +1361,77 @@ function _getToolOp(type) {
       blur:       parseFloat(document.getElementById('fBlur').value)       / 10,
     };
   }
+  if (type === 'reverse') {
+    return { type: 'reverse' };
+  }
+  if (type === 'fade') {
+    return {
+      type:     'fade',
+      fade_in:  parseFloat(document.getElementById('fadeIn').value)  / 10,
+      fade_out: parseFloat(document.getElementById('fadeOut').value) / 10,
+    };
+  }
+  if (type === 'aspect') {
+    return { type: 'aspect', ratio: selectedAspect };
+  }
+  if (type === 'compress') {
+    return { type: 'compress', preset: selectedCompress };
+  }
   return null;
+}
+
+// ── Color grading presets ─────────────────────────────────────────────────────
+const COLOR_PRESETS = {
+  original:  { brightness: 0,    contrast: 100, saturation: 100, blur: 0  },
+  vivid:     { brightness: 0,    contrast: 120, saturation: 160, blur: 0  },
+  cinematic: { brightness: -5,   contrast: 115, saturation: 75,  blur: 0  },
+  vintage:   { brightness: 5,    contrast: 90,  saturation: 60,  blur: 3  },
+  bw:        { brightness: 0,    contrast: 110, saturation: 0,   blur: 0  },
+  warm:      { brightness: 5,    contrast: 105, saturation: 120, blur: 0  },
+  cool:      { brightness: 0,    contrast: 100, saturation: 90,  blur: 0  },
+};
+
+function setColorPreset(name) {
+  const p = COLOR_PRESETS[name];
+  if (!p) return;
+  document.getElementById('fBrightness').value = p.brightness;
+  document.getElementById('fContrast').value   = p.contrast;
+  document.getElementById('fSaturation').value = p.saturation;
+  document.getElementById('fBlur').value       = p.blur;
+  updateSliderVal('fBrightness', 'bVal');
+  updateSliderVal('fContrast',   'cVal');
+  updateSliderVal('fSaturation', 'sVal');
+  updateSliderVal('fBlur',       'blVal');
+  document.querySelectorAll('#colorPresets .preset-chip').forEach(c => {
+    c.classList.toggle('active', c.textContent.toLowerCase().replace(/[& ]/g,'') === name.replace(/[& ]/g,''));
+  });
+}
+
+function clearPreset() {
+  document.querySelectorAll('#colorPresets .preset-chip').forEach(c => c.classList.remove('active'));
+}
+
+// ── Aspect ratio selector ─────────────────────────────────────────────────────
+function setAspect(ratio) {
+  selectedAspect = ratio;
+  document.querySelectorAll('#aspectBtns .aspect-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.startsWith(ratio));
+  });
+}
+
+// ── Compress preset selector ──────────────────────────────────────────────────
+function setCompress(preset) {
+  selectedCompress = preset;
+  document.querySelectorAll('#compressBtns .compress-btn').forEach((b, i) => {
+    const names = ['high','medium','web','small'];
+    b.classList.toggle('active', names[i] === preset);
+  });
+}
+
+// ── Fade slider display ───────────────────────────────────────────────────────
+function updateFadeVal(id, valId) {
+  const v = parseFloat(document.getElementById(id).value) / 10;
+  document.getElementById(valId).textContent = v.toFixed(1) + 's';
 }
 
 async function runTool(type) {
@@ -1305,6 +1518,40 @@ function previewTool(type) {
 // Keep trim range synced with timeline
 const _origSync = syncTimeline;
 // (syncTimeline already updates trimStart/trimEnd via switchTab, good enough)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  // Ignore when typing in an input/textarea
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+  const v = document.getElementById('vid');
+
+  switch (e.key) {
+    case ' ':
+      e.preventDefault();
+      if (v && v.src) togglePlay();
+      break;
+    case 'ArrowLeft':
+    case 'j':
+      if (v && v.src) { v.currentTime = Math.max(0, v.currentTime - 5); }
+      break;
+    case 'ArrowRight':
+    case 'l':
+      if (v && v.src) { v.currentTime = Math.min(v.duration || 0, v.currentTime + 5); }
+      break;
+    case '1': switchTab('remove');  break;
+    case '2': switchTab('eraser');  break;
+    case '3': switchTab('audio');   break;
+    case '4': switchTab('tools');   break;
+    case 'r':
+    case 'R':
+      if (videoFile && !e.ctrlKey && !e.metaKey) { e.preventDefault(); runDetect(); }
+      break;
+  }
+});
 
 </script>
 </body>
