@@ -589,3 +589,184 @@ def run_video_ocr(video_path: str, job_id: str | None = None):
         jobs[job_id].update({"status": "failed", "error": str(exc),
                               "trace": traceback.format_exc()})
     return job_id
+
+
+# ── FACE BLUR & ANONYMIZER ────────────────────────────────────────────────────
+
+def run_face_blur(video_path: str, blur_strength: int = 45, job_id: str = None):
+    """
+    Detect faces in every frame using OpenCV Haar cascade and apply Gaussian blur.
+    blur_strength: odd integer, higher = more blurred (default 45).
+    """
+    import tempfile, subprocess
+    if not job_id:
+        job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    log.info("=== FACE-BLUR %s ===", job_id)
+
+    try:
+        import cv2 as _cv2
+        # Use OpenCV's built-in frontal face cascade (no extra download needed)
+        cascade_path = _cv2.data.haarcascades + "haarcascade_frontalface_alt2.xml"
+        face_cascade = _cv2.CascadeClassifier(cascade_path)
+
+        out_dir = os.path.join(_STORAGE, job_id, "output")
+        os.makedirs(out_dir, exist_ok=True)
+        frames_dir = os.path.join(_STORAGE, job_id, "frames")
+        edited_dir = os.path.join(_STORAGE, job_id, "edited")
+        os.makedirs(frames_dir, exist_ok=True)
+        os.makedirs(edited_dir, exist_ok=True)
+
+        # Get video info
+        cap = _cv2.VideoCapture(video_path)
+        fps = cap.get(_cv2.CAP_PROP_FPS) or 30.0
+        total = int(cap.get(_cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
+
+        # Extract all frames at original FPS
+        jobs[job_id]["progress"] = 5
+        frame_paths = extract_frames(video_path, frames_dir, fps=fps)
+        if not frame_paths:
+            raise RuntimeError("No frames extracted")
+
+        n = len(frame_paths)
+        ks = blur_strength | 1  # ensure odd
+        log.info("Face-blur: %d frames, kernel=%d", n, ks)
+
+        for i, fp in enumerate(frame_paths):
+            frame = _cv2.imread(fp)
+            if frame is None:
+                continue
+            gray = _cv2.cvtColor(frame, _cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(
+                gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+            )
+            for (x, y, w, h) in faces:
+                pad = int(max(w, h) * 0.15)
+                x1 = max(0, x - pad); y1 = max(0, y - pad)
+                x2 = min(frame.shape[1], x + w + pad)
+                y2 = min(frame.shape[0], y + h + pad)
+                roi = frame[y1:y2, x1:x2]
+                blurred = _cv2.GaussianBlur(roi, (ks, ks), 0)
+                frame[y1:y2, x1:x2] = blurred
+
+            out_fp = os.path.join(edited_dir, f"f_{i:05d}.jpg")
+            _cv2.imwrite(out_fp, frame, [_cv2.IMWRITE_JPEG_QUALITY, 92])
+            jobs[job_id]["progress"] = 5 + int((i + 1) / n * 75)
+
+        # Encode edited frames → video
+        jobs[job_id]["progress"] = 82
+        seg = os.path.join(tempfile.mkdtemp(prefix="frameai_fblur_"), "seg.mp4")
+        subprocess.run([
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            "-framerate", str(fps),
+            "-i", os.path.join(edited_dir, "f_%05d.jpg"),
+            "-vf", f"fps={fps:.3f},scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", seg
+        ], check=True)
+
+        # Mux original audio
+        from pipeline.engine import _add_audio
+        final = os.path.join(out_dir, "final.mp4")
+        _add_audio(seg, video_path, final)
+        jobs[job_id].update({"status": "completed", "output": final, "progress": 100})
+        log.info("=== FACE-BLUR %s DONE ===", job_id)
+    except Exception as exc:
+        import traceback
+        log.error("FACE-BLUR failed: %s", exc)
+        jobs[job_id].update({"status": "failed", "error": str(exc),
+                              "trace": traceback.format_exc()})
+    return job_id
+
+
+# ── SCENE DETECTION ───────────────────────────────────────────────────────────
+
+def detect_scenes(video_path: str, threshold: float = 27.0) -> dict:
+    """
+    Detect scene changes using PySceneDetect ContentDetector.
+    Returns list of {scene, start, end, duration} dicts.
+    """
+    try:
+        from scenedetect import detect, ContentDetector
+        scenes = detect(video_path, ContentDetector(threshold=threshold))
+        result = []
+        for i, (start, end) in enumerate(scenes):
+            result.append({
+                "scene": i + 1,
+                "start": round(start.get_seconds(), 3),
+                "end":   round(end.get_seconds(), 3),
+                "duration": round((end - start).get_seconds(), 3),
+            })
+        return {"scenes": result, "count": len(result)}
+    except Exception as exc:
+        return {"scenes": [], "count": 0, "error": str(exc)}
+
+
+# ── AI AUDIO DENOISE ─────────────────────────────────────────────────────────
+
+def run_ai_denoise(video_path: str, strength: float = 0.75, job_id: str = None):
+    """
+    Remove background noise from video audio using noisereduce.
+    strength: 0.0–1.0 (how aggressively to suppress noise).
+    """
+    import subprocess, tempfile
+    if not job_id:
+        job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    log.info("=== AI-DENOISE %s strength=%.2f ===", job_id, strength)
+
+    try:
+        import soundfile as sf
+        import noisereduce as nr
+        import numpy as _np
+
+        out_dir = os.path.join(_STORAGE, job_id, "output")
+        os.makedirs(out_dir, exist_ok=True)
+        tmp_dir = tempfile.mkdtemp(prefix="frameai_dnoise_")
+
+        # Extract audio as WAV
+        jobs[job_id]["progress"] = 10
+        wav_path = os.path.join(tmp_dir, "audio.wav")
+        subprocess.run([
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            "-i", video_path, "-vn",
+            "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "1",
+            wav_path
+        ], check=True)
+
+        # Load + denoise
+        jobs[job_id]["progress"] = 25
+        data, rate = sf.read(wav_path)
+        jobs[job_id]["progress"] = 35
+        # Use first 0.5s as noise profile if available
+        noise_sample = data[:int(rate * 0.5)] if len(data) > rate * 0.5 else data[:1000]
+        denoised = nr.reduce_noise(
+            y=data, sr=rate,
+            y_noise=noise_sample,
+            prop_decrease=float(strength),
+            stationary=False,
+        )
+        jobs[job_id]["progress"] = 70
+        clean_wav = os.path.join(tmp_dir, "clean.wav")
+        sf.write(clean_wav, denoised, rate)
+
+        # Mux clean audio with original video
+        jobs[job_id]["progress"] = 80
+        final = os.path.join(out_dir, "final.mp4")
+        subprocess.run([
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+            "-i", video_path,
+            "-i", clean_wav,
+            "-c:v", "copy",
+            "-map", "0:v:0", "-map", "1:a:0",
+            "-shortest", final
+        ], check=True)
+
+        jobs[job_id].update({"status": "completed", "output": final, "progress": 100})
+        log.info("=== AI-DENOISE %s DONE ===", job_id)
+    except Exception as exc:
+        import traceback
+        log.error("AI-DENOISE failed: %s", exc)
+        jobs[job_id].update({"status": "failed", "error": str(exc),
+                              "trace": traceback.format_exc()})
+    return job_id

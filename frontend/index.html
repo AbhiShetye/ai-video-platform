@@ -1045,6 +1045,7 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
       <button class="ptab" id="tab-audio" onclick="switchTab('audio')"><span class="ptab-icon">&#127925;</span>Audio</button>
       <button class="ptab" id="tab-tools" onclick="switchTab('tools')"><span class="ptab-icon">&#9881;</span>Tools</button>
       <button class="ptab" id="tab-ai" onclick="switchTab('ai')" style="color:var(--p);"><span class="ptab-icon">&#129302;</span>AI</button>
+      <button class="ptab" id="tab-photo" onclick="switchTab('photo')"><span class="ptab-icon">&#128444;</span>Photo</button>
     </div>
 
     <!-- ══ REMOVE TAB ══ -->
@@ -1571,6 +1572,57 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
           </div>
         </div>
 
+        <!-- FACE BLUR -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#129333; Face Blur &amp; Anonymizer <span class="ai-badge">OPENCV</span></div>
+          <div class="ai-card-desc">Automatically detect and blur every face in the video. Perfect for privacy protection, street footage, or interviews.</div>
+          <div class="stab-row"><span class="stab-label">Blur Strength</span><input type="range" class="fslider" id="faceBlurStrength" min="11" max="99" step="2" value="45" oninput="document.getElementById('faceBlurVal').textContent=this.value"><span class="stab-val" id="faceBlurVal">45</span></div>
+          <button class="ai-btn" id="faceBlurBtn" onclick="runFaceBlur()" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);">&#129333; Blur All Faces</button>
+          <div class="progress-wrap" id="faceBlurProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="faceBlurProgBar"></div></div>
+            <div class="prog-label" id="faceBlurProgLabel">Detecting faces…</div>
+          </div>
+          <div class="ai-result" id="faceBlurResult">
+            <div style="display:flex;gap:8px;">
+              <button class="preview-btn" onclick="previewNovelJob('faceBlur')">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('faceBlur')" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);">&#11015; Download</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCENE DETECTOR -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#127917; Auto Scene Detector <span class="ai-badge">SCENEDETECT</span></div>
+          <div class="ai-card-desc">Find every scene cut in your video. Get timestamps for each scene — great for finding natural cut points.</div>
+          <button class="ai-btn" id="sceneBtn" onclick="runSceneDetect()" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);">&#127917; Detect Scenes</button>
+          <div class="progress-wrap" id="sceneProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="sceneProgBar"></div></div>
+            <div class="prog-label" id="sceneProgLabel">Analyzing video…</div>
+          </div>
+          <div id="sceneResultPanel" style="display:none;margin-top:10px;">
+            <div id="sceneCount" style="font-size:11px;color:var(--t3);margin-bottom:8px;text-align:center;"></div>
+            <div id="sceneList" style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+          </div>
+        </div>
+
+        <!-- AI AUDIO DENOISE -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#127895; AI Audio Denoiser <span class="ai-badge">NOISEREDUCE</span></div>
+          <div class="ai-card-desc">Remove hiss, hum, fan noise, and background noise from your video audio using AI spectral subtraction.</div>
+          <div class="stab-row"><span class="stab-label">Strength</span><input type="range" class="fslider" id="denoiseStrength" min="10" max="100" value="75" oninput="document.getElementById('denoiseStrVal').textContent=Math.round(this.value)+'%'"><span class="stab-val" id="denoiseStrVal">75%</span></div>
+          <button class="ai-btn" id="aiDenoiseBtn" onclick="runAiDenoise()" style="background:linear-gradient(135deg,#064e3b,#059669);">&#127895; Remove Noise</button>
+          <div class="progress-wrap" id="aiDenoiseProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="aiDenoiseProgBar"></div></div>
+            <div class="prog-label" id="aiDenoiseProgLabel">Analyzing noise profile…</div>
+          </div>
+          <div class="ai-result" id="aiDenoiseResult">
+            <div style="display:flex;gap:8px;">
+              <button class="preview-btn" onclick="previewNovelJob('aiDenoise')">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('aiDenoise')" style="background:linear-gradient(135deg,#064e3b,#059669);">&#11015; Download Clean Audio</button>
+            </div>
+          </div>
+        </div>
+
         <!-- IN-VIDEO OCR -->
         <div class="ai-card">
           <div class="ai-card-title">&#128292; In-Video OCR <span class="ai-badge">EASYOCR</span></div>
@@ -1589,6 +1641,134 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
 
       </div>
     </div><!-- end #content-ai -->
+
+    <!-- ══ PHOTO EDITOR TAB ══ -->
+    <div id="content-photo" style="display:none;flex:1;overflow:hidden;">
+      <div class="tools-body">
+
+        <!-- Upload card -->
+        <div class="ai-card" id="photoUploadCard">
+          <div class="ai-card-title">&#128247; Photo Editor <span class="ai-badge">AI-POWERED</span></div>
+          <div class="ai-card-desc">Upload an image to edit — background removal, AI upscaling, filters, object removal, text overlay and more.</div>
+          <div id="imgDropArea" style="border:2px dashed rgba(129,140,248,.3);border-radius:12px;padding:22px;text-align:center;cursor:pointer;position:relative;transition:border-color .2s;" ondragover="event.preventDefault();this.style.borderColor='var(--p)'" ondragleave="this.style.borderColor=''" ondrop="onImgDrop(event)">
+            <input type="file" accept="image/*" id="imgFileInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="onImgChosen(event)">
+            <div style="font-size:30px;margin-bottom:8px;">&#128444;</div>
+            <div style="font-size:13px;color:var(--t2);font-weight:600;">Drop image or click to browse</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:4px;">JPG &nbsp;·&nbsp; PNG &nbsp;·&nbsp; WebP &nbsp;·&nbsp; GIF</div>
+          </div>
+          <div id="imgInfo" style="display:none;margin-top:10px;padding:8px 12px;background:rgba(129,140,248,.06);border:1px solid rgba(129,140,248,.15);border-radius:8px;font-size:11px;color:var(--t3);">
+            <span id="imgInfoName" style="color:var(--p);font-weight:700;"></span>
+            <span id="imgInfoDims" style="margin-left:10px;"></span>
+            <button onclick="resetPhoto()" style="float:right;background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;padding:0;" title="Clear">&#10006; Clear</button>
+          </div>
+          <!-- Inline preview -->
+          <div id="imgPreviewWrap" style="display:none;margin-top:10px;border-radius:10px;overflow:hidden;background:#000;max-height:200px;display:none;align-items:center;justify-content:center;">
+            <img id="imgPreview" src="" alt="preview" style="max-width:100%;max-height:200px;object-fit:contain;">
+          </div>
+        </div>
+
+        <!-- Tools — shown when image is loaded -->
+        <div id="photoTools" style="display:none;">
+
+          <!-- BG Remove -->
+          <div class="ai-card">
+            <div class="ai-card-title">&#127775; Remove Background <span class="ai-badge">REMBG AI</span></div>
+            <div class="ai-card-desc">Remove the photo background and replace with transparency or a solid color.</div>
+            <div style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Output Background</div>
+            <div class="bg-grid" id="imgBgSwatches">
+              <div class="bg-swatch active" style="background:linear-gradient(135deg,#555 25%,#999 25%,#999 50%,#555 50%,#555 75%,#999 75%)" onclick="setImgBg('transparent')" title="Transparent"></div>
+              <div class="bg-swatch" style="background:#000" onclick="setImgBg('black')" title="Black"></div>
+              <div class="bg-swatch" style="background:#fff" onclick="setImgBg('white')" title="White"></div>
+              <div class="bg-swatch" style="background:#00ff00" onclick="setImgBg('green')" title="Green"></div>
+              <div class="bg-swatch" style="background:#0000ff" onclick="setImgBg('blue')" title="Blue"></div>
+            </div>
+            <button class="ai-btn" id="imgBgBtn" onclick="runImgBgRemove()">&#127775; Remove Background</button>
+            <div class="progress-wrap" id="imgBgProgWrap" style="margin-top:8px;"><div class="prog-bar-bg"><div class="prog-bar" id="imgBgProgBar"></div></div><div class="prog-label" id="imgBgProgLabel">Processing…</div></div>
+            <div class="ai-result" id="imgBgResult"><button class="dl-btn" onclick="downloadImgResult('imgBg')">&#11015; Download Image</button></div>
+          </div>
+
+          <!-- Filters -->
+          <div class="ai-card">
+            <div class="ai-card-title">&#127774; Filters &amp; Color Grade</div>
+            <div class="preset-chips" id="imgColorPresets">
+              <div class="preset-chip active" onclick="setImgPreset('original')">Original</div>
+              <div class="preset-chip" onclick="setImgPreset('vivid')">Vivid</div>
+              <div class="preset-chip" onclick="setImgPreset('cinematic')">Cinematic</div>
+              <div class="preset-chip" onclick="setImgPreset('vintage')">Vintage</div>
+              <div class="preset-chip" onclick="setImgPreset('bw')">B&amp;W</div>
+              <div class="preset-chip" onclick="setImgPreset('warm')">Warm</div>
+              <div class="preset-chip" onclick="setImgPreset('cool')">Cool</div>
+            </div>
+            <div class="fslider-row"><span class="fslider-label">Brightness</span><input type="range" class="fslider" id="imgBrightness" min="0" max="300" value="100" oninput="document.getElementById('imgBVal').textContent=(this.value/100).toFixed(1);clearImgPreset()"><span class="fslider-val" id="imgBVal">1.0</span></div>
+            <div class="fslider-row"><span class="fslider-label">Contrast</span><input type="range" class="fslider" id="imgContrast" min="0" max="300" value="100" oninput="document.getElementById('imgCVal').textContent=(this.value/100).toFixed(1);clearImgPreset()"><span class="fslider-val" id="imgCVal">1.0</span></div>
+            <div class="fslider-row"><span class="fslider-label">Saturation</span><input type="range" class="fslider" id="imgSaturation" min="0" max="300" value="100" oninput="document.getElementById('imgSVal').textContent=(this.value/100).toFixed(1);clearImgPreset()"><span class="fslider-val" id="imgSVal">1.0</span></div>
+            <div class="fslider-row"><span class="fslider-label">Sharpness</span><input type="range" class="fslider" id="imgSharpness" min="0" max="300" value="100" oninput="document.getElementById('imgShVal').textContent=(this.value/100).toFixed(1);clearImgPreset()"><span class="fslider-val" id="imgShVal">1.0</span></div>
+            <div class="fslider-row"><span class="fslider-label">Blur</span><input type="range" class="fslider" id="imgBlur" min="0" max="20" value="0" oninput="document.getElementById('imgBlVal').textContent=this.value;clearImgPreset()"><span class="fslider-val" id="imgBlVal">0</span></div>
+            <button class="ai-btn" id="imgFilterBtn" onclick="runImgFilter()" style="background:linear-gradient(135deg,#7c3aed,#818cf8);">&#127774; Apply Filters</button>
+            <div class="progress-wrap" id="imgFilterProgWrap" style="margin-top:8px;"><div class="prog-bar-bg"><div class="prog-bar" id="imgFilterProgBar"></div></div><div class="prog-label" id="imgFilterProgLabel">Processing…</div></div>
+            <div class="ai-result" id="imgFilterResult"><button class="dl-btn" onclick="downloadImgResult('imgFilter')">&#11015; Download</button></div>
+          </div>
+
+          <!-- Upscale -->
+          <div class="ai-card">
+            <div class="ai-card-title">&#128269; AI Upscale <span class="ai-badge">LANCZOS+SHARP</span></div>
+            <div class="ai-card-desc">Increase image resolution with AI-sharpened upscaling. 2× or 4× output size.</div>
+            <div class="speed-grid" id="upscaleBtns" style="margin-bottom:10px;">
+              <div class="speed-btn active" onclick="setUpscale(2)">2&#215;</div>
+              <div class="speed-btn" onclick="setUpscale(3)">3&#215;</div>
+              <div class="speed-btn" onclick="setUpscale(4)">4&#215;</div>
+            </div>
+            <div id="upscaleInfo" style="font-size:11px;color:var(--t3);margin-bottom:10px;">Output will be 2× the original dimensions</div>
+            <button class="ai-btn" id="imgUpscaleBtn" onclick="runImgUpscale()" style="background:linear-gradient(135deg,#0891b2,#38bdf8);">&#128269; Upscale Image</button>
+            <div class="progress-wrap" id="imgUpscaleProgWrap" style="margin-top:8px;"><div class="prog-bar-bg"><div class="prog-bar" id="imgUpscaleProgBar"></div></div><div class="prog-label" id="imgUpscaleProgLabel">Upscaling…</div></div>
+            <div class="ai-result" id="imgUpscaleResult"><button class="dl-btn" onclick="downloadImgResult('imgUpscale')" style="background:linear-gradient(135deg,#0891b2,#38bdf8);">&#11015; Download HD Image</button></div>
+          </div>
+
+          <!-- Text Overlay -->
+          <div class="ai-card">
+            <div class="ai-card-title">&#84; Text &amp; Watermark</div>
+            <div class="tf" style="margin-bottom:8px;"><label>Text</label><input type="text" id="imgTextContent" placeholder="Your text here…" style="width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 10px;color:var(--t1);font-size:13px;" maxlength="80"></div>
+            <div class="pos-grid" id="imgPosBtns">
+              <div class="pos-btn" onclick="setImgTextPos('tl')">&#8598; TL</div>
+              <div class="pos-btn active" onclick="setImgTextPos('bc')">&#8595; BC</div>
+              <div class="pos-btn" onclick="setImgTextPos('tr')">&#8599; TR</div>
+              <div class="pos-btn" onclick="setImgTextPos('bl')">&#8601; BL</div>
+              <div class="pos-btn" onclick="setImgTextPos('tc')">&#8593; TC</div>
+              <div class="pos-btn" onclick="setImgTextPos('br')">&#8600; BR</div>
+              <div class="pos-btn" onclick="setImgTextPos('center')" style="grid-column:1/-1;">&#8853; Center</div>
+            </div>
+            <div class="fslider-row"><span class="fslider-label">Font Size</span><input type="range" class="fslider" id="imgTextSize" min="12" max="200" value="48" oninput="document.getElementById('imgTextSizeVal').textContent=this.value+'px'"><span class="fslider-val" id="imgTextSizeVal">48px</span></div>
+            <div class="color-row" id="imgColorSwatches">
+              <div class="color-swatch active" style="background:#fff" onclick="setImgTextColor('white')" title="White"></div>
+              <div class="color-swatch" style="background:#000" onclick="setImgTextColor('black')" title="Black"></div>
+              <div class="color-swatch" style="background:#fbbf24" onclick="setImgTextColor('yellow')" title="Yellow"></div>
+              <div class="color-swatch" style="background:#f87171" onclick="setImgTextColor('red')" title="Red"></div>
+              <div class="color-swatch" style="background:#34d399" onclick="setImgTextColor('green')" title="Green"></div>
+              <div class="color-swatch" style="background:#38bdf8" onclick="setImgTextColor('cyan')" title="Cyan"></div>
+              <div class="color-swatch" style="background:#818cf8" onclick="setImgTextColor('blue')" title="Blue"></div>
+            </div>
+            <button class="ai-btn" id="imgTextBtn" onclick="runImgText()" style="background:linear-gradient(135deg,#b45309,#fbbf24);">&#10004; Add Text</button>
+            <div class="progress-wrap" id="imgTextProgWrap" style="margin-top:8px;"><div class="prog-bar-bg"><div class="prog-bar" id="imgTextProgBar"></div></div><div class="prog-label" id="imgTextProgLabel">Processing…</div></div>
+            <div class="ai-result" id="imgTextResult"><button class="dl-btn" onclick="downloadImgResult('imgText')" style="background:linear-gradient(135deg,#b45309,#fbbf24);">&#11015; Download</button></div>
+          </div>
+
+          <!-- Object Removal -->
+          <div class="ai-card">
+            <div class="ai-card-title">&#9986; Remove Object <span class="ai-badge">YOLO + LAMA</span></div>
+            <div class="ai-card-desc">Scan the photo for objects, click one to select it, then erase it with AI inpainting.</div>
+            <button class="ai-btn" id="imgScanBtn" onclick="runImgScan()" style="background:linear-gradient(135deg,#1e3a5f,#6366f1);">&#128269; Scan for Objects</button>
+            <div id="imgObjList" style="margin-top:8px;"></div>
+            <div id="imgRemoveSection" style="display:none;margin-top:8px;">
+              <div id="imgSelectedObj" style="font-size:11px;color:var(--t2);margin-bottom:8px;padding:6px 10px;background:rgba(129,140,248,.08);border-radius:6px;"></div>
+              <button class="ai-btn" id="imgRemoveBtn" onclick="runImgObjRemove()" style="background:linear-gradient(135deg,#ef4444,#f97316);">&#9986; Remove Object</button>
+            </div>
+            <div class="progress-wrap" id="imgRemoveProgWrap" style="margin-top:8px;"><div class="prog-bar-bg"><div class="prog-bar" id="imgRemoveProgBar"></div></div><div class="prog-label" id="imgRemoveProgLabel">Processing…</div></div>
+            <div class="ai-result" id="imgRemoveResult"><button class="dl-btn" onclick="downloadImgResult('imgRemove')" style="background:linear-gradient(135deg,#ef4444,#f97316);">&#11015; Download</button></div>
+          </div>
+
+        </div><!-- end photoTools -->
+      </div>
+    </div><!-- end #content-photo -->
 
   </div>
 </div>
@@ -2192,11 +2372,11 @@ setStep(1);
 let activeTab = 'remove';
 function switchTab(tab) {
   activeTab = tab;
-  ['remove','eraser','audio','tools','ai'].forEach(t => {
+  ['remove','eraser','audio','tools','ai','photo'].forEach(t => {
     const c = document.getElementById('content-' + t);
     const b = document.getElementById('tab-' + t);
     if (c) {
-      c.style.display = t === tab ? '' : 'none';
+      c.style.display = t === tab ? (t === 'tools' || t === 'ai' || t === 'photo' ? 'flex' : '') : 'none';
       if (t === tab) { c.classList.remove('tab-enter'); void c.offsetWidth; c.classList.add('tab-enter'); }
     }
     if (b) b.classList.toggle('active', t === tab);
@@ -3185,6 +3365,365 @@ function filterOcrResults() {
       <span style="color:var(--p);font-size:10px;min-width:34px;font-weight:700;">${e.time.toFixed(1)}s</span>
       <span style="color:var(--t2);">${e.text}</span>
     </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EXCLUSIVE AI VIDEO FEATURES — Face Blur, Scene Detect, AI Denoise
+// ══════════════════════════════════════════════════════════════════════════════
+
+Object.assign(_aiJobs, { faceBlur: null, aiDenoise: null });
+
+function runFaceBlur() {
+  const strength = parseInt(document.getElementById('faceBlurStrength').value) | 1;
+  _startAiJob(
+    'faceBlurBtn', 'faceBlurProgWrap', 'faceBlurProgBar', 'faceBlurProgLabel', 'faceBlurResult',
+    '/face-blur',
+    { filename: videoFile.name, blur_strength: strength },
+    (s, jid) => { _aiJobs.faceBlur = jid; }
+  );
+}
+
+async function runSceneDetect() {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  const btn = document.getElementById('sceneBtn');
+  btn.disabled = true; btn.classList.add('running');
+  document.getElementById('sceneProgWrap').classList.add('on');
+  document.getElementById('sceneResultPanel').style.display = 'none';
+  document.getElementById('sceneProgBar').style.width = '30%';
+  document.getElementById('sceneProgLabel').textContent = 'Analyzing scene cuts…';
+  try {
+    const r = await fetch(API + '/detect-scenes/' + encodeURIComponent(videoFile.name));
+    const d = await r.json();
+    document.getElementById('sceneProgBar').style.width = '100%';
+    setTimeout(() => document.getElementById('sceneProgWrap').classList.remove('on'), 400);
+    btn.disabled = false; btn.classList.remove('running');
+    if (d.error) { toast('Scene detection failed: ' + d.error, 'err'); return; }
+    _renderScenes(d);
+  } catch (err) {
+    document.getElementById('sceneProgWrap').classList.remove('on');
+    btn.disabled = false; btn.classList.remove('running');
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+function _renderScenes(d) {
+  document.getElementById('sceneCount').textContent = d.count + ' scene' + (d.count !== 1 ? 's' : '') + ' detected';
+  const list = document.getElementById('sceneList');
+  list.innerHTML = (d.scenes || []).map(s =>
+    `<div onclick="document.getElementById('vid').currentTime=${s.start}" title="Jump to scene ${s.scene}"
+          style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);cursor:pointer;font-size:11px;">
+       <span style="color:var(--p);font-weight:700;min-width:22px;">S${s.scene}</span>
+       <span style="color:var(--t2);">${s.start.toFixed(1)}s → ${s.end.toFixed(1)}s</span>
+       <span style="color:var(--t3);margin-left:auto;">${s.duration.toFixed(1)}s</span>
+     </div>`
+  ).join('');
+  document.getElementById('sceneResultPanel').style.display = '';
+  toast(d.count + ' scenes found — click any to jump', 'ok');
+}
+
+function runAiDenoise() {
+  const strength = parseFloat(document.getElementById('denoiseStrength').value) / 100;
+  _startAiJob(
+    'aiDenoiseBtn', 'aiDenoiseProgWrap', 'aiDenoiseProgBar', 'aiDenoiseProgLabel', 'aiDenoiseResult',
+    '/ai-denoise',
+    { filename: videoFile.name, strength },
+    (s, jid) => { _aiJobs.aiDenoise = jid; }
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PHOTO EDITOR
+// ══════════════════════════════════════════════════════════════════════════════
+
+let imgFile       = null;
+let _imgBg        = 'transparent';
+let _imgTextPos   = 'bc';
+let _imgTextColor = 'white';
+let _imgScale     = 2;
+let _imgSelectedObj = null;
+const imgJobs = { imgBg: null, imgFilter: null, imgUpscale: null, imgText: null, imgRemove: null };
+
+const IMG_PRESETS = {
+  original:  { b:100, c:100, s:100, sh:100, bl:0 },
+  vivid:     { b:110, c:120, s:160, sh:120, bl:0 },
+  cinematic: { b:95,  c:115, s:75,  sh:110, bl:0 },
+  vintage:   { b:105, c:90,  s:60,  sh:90,  bl:1 },
+  bw:        { b:100, c:110, s:0,   sh:100, bl:0 },
+  warm:      { b:108, c:105, s:120, sh:100, bl:0 },
+  cool:      { b:100, c:100, s:90,  sh:100, bl:0 },
+};
+
+function onImgChosen(e) {
+  const f = e.target.files[0];
+  if (f) loadImgFile(f);
+}
+function onImgDrop(e) {
+  e.preventDefault();
+  document.getElementById('imgDropArea').style.borderColor = '';
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImgFile(f);
+  else toast('Drop an image file (JPG, PNG, WebP)', 'err');
+}
+
+async function loadImgFile(file) {
+  imgFile = file;
+  // Show preview immediately (client-side)
+  const url = URL.createObjectURL(file);
+  const imgEl = document.getElementById('imgPreview');
+  imgEl.src = url;
+  imgEl.onload = () => {
+    const wrap = document.getElementById('imgPreviewWrap');
+    wrap.style.display = 'flex';
+    // Update info
+    document.getElementById('imgInfoName').textContent = file.name.length > 26 ? file.name.slice(0,23)+'…' : file.name;
+    document.getElementById('imgInfoDims').textContent = imgEl.naturalWidth + ' × ' + imgEl.naturalHeight + ' px';
+    document.getElementById('imgInfo').style.display = '';
+    document.getElementById('photoTools').style.display = '';
+    // Update upscale info
+    _updateUpscaleInfo();
+  };
+
+  // Upload to backend
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const r = await fetch(API + '/upload-image', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Upload failed');
+    toast('Image ready for editing!', 'ok');
+  } catch (err) {
+    toast('Upload failed: ' + err.message, 'err');
+  }
+}
+
+function resetPhoto() {
+  imgFile = null; _imgSelectedObj = null;
+  Object.keys(imgJobs).forEach(k => imgJobs[k] = null);
+  document.getElementById('imgFileInput').value = '';
+  document.getElementById('imgPreview').src = '';
+  document.getElementById('imgPreviewWrap').style.display = 'none';
+  document.getElementById('imgInfo').style.display = 'none';
+  document.getElementById('photoTools').style.display = 'none';
+  document.getElementById('imgObjList').innerHTML = '';
+  document.getElementById('imgRemoveSection').style.display = 'none';
+  ['imgBg','imgFilter','imgUpscale','imgText','imgRemove'].forEach(k => {
+    document.getElementById(k+'ProgWrap')?.classList.remove('on');
+    document.getElementById(k+'Result')?.classList.remove('on');
+    const btn = document.getElementById(k+'Btn');
+    if (btn) { btn.disabled = false; btn.classList.remove('running'); }
+  });
+}
+
+// ── Image BG Remove
+function setImgBg(v) {
+  _imgBg = v;
+  document.querySelectorAll('#imgBgSwatches .bg-swatch').forEach((s, i) =>
+    s.classList.toggle('active', ['transparent','black','white','green','blue'][i] === v));
+}
+async function runImgBgRemove() {
+  if (!imgFile) { toast('Upload an image first', 'err'); return; }
+  await _runImgJob('imgBgBtn','imgBgProgWrap','imgBgProgBar','imgBgProgLabel','imgBgResult',
+    '/image-bg-remove', { filename: imgFile.name, bg: _imgBg }, 'imgBg');
+}
+
+// ── Image Filters
+function setImgPreset(name) {
+  const p = IMG_PRESETS[name]; if (!p) return;
+  document.getElementById('imgBrightness').value = p.b;
+  document.getElementById('imgContrast').value   = p.c;
+  document.getElementById('imgSaturation').value = p.s;
+  document.getElementById('imgSharpness').value  = p.sh;
+  document.getElementById('imgBlur').value       = p.bl;
+  ['B','C','S','Sh','Bl'].forEach((k, i) => {
+    const ids = ['imgBrightness','imgContrast','imgSaturation','imgSharpness','imgBlur'];
+    const vals = ['imgBVal','imgCVal','imgSVal','imgShVal','imgBlVal'];
+    const raw = parseFloat(document.getElementById(ids[i]).value);
+    document.getElementById(vals[i]).textContent = i < 4 ? (raw/100).toFixed(1) : raw;
+  });
+  document.querySelectorAll('#imgColorPresets .preset-chip').forEach(c =>
+    c.classList.toggle('active', c.textContent.toLowerCase().trim() === name));
+}
+function clearImgPreset() {
+  document.querySelectorAll('#imgColorPresets .preset-chip').forEach(c => c.classList.remove('active'));
+}
+async function runImgFilter() {
+  if (!imgFile) { toast('Upload an image first', 'err'); return; }
+  await _runImgJob('imgFilterBtn','imgFilterProgWrap','imgFilterProgBar','imgFilterProgLabel','imgFilterResult',
+    '/image-filter', {
+      filename:   imgFile.name,
+      brightness: parseFloat(document.getElementById('imgBrightness').value) / 100,
+      contrast:   parseFloat(document.getElementById('imgContrast').value)   / 100,
+      saturation: parseFloat(document.getElementById('imgSaturation').value) / 100,
+      sharpness:  parseFloat(document.getElementById('imgSharpness').value)  / 100,
+      blur:       parseFloat(document.getElementById('imgBlur').value),
+    }, 'imgFilter');
+}
+
+// ── Image Upscale
+function setUpscale(n) {
+  _imgScale = n;
+  document.querySelectorAll('#upscaleBtns .speed-btn').forEach((b, i) =>
+    b.classList.toggle('active', [2,3,4][i] === n));
+  _updateUpscaleInfo();
+}
+function _updateUpscaleInfo() {
+  const img = document.getElementById('imgPreview');
+  if (!img.naturalWidth) { document.getElementById('upscaleInfo').textContent = 'Output will be ' + _imgScale + '× the original'; return; }
+  const nw = img.naturalWidth * _imgScale, nh = img.naturalHeight * _imgScale;
+  document.getElementById('upscaleInfo').textContent = img.naturalWidth + '×' + img.naturalHeight + ' → ' + nw + '×' + nh + ' px';
+}
+async function runImgUpscale() {
+  if (!imgFile) { toast('Upload an image first', 'err'); return; }
+  await _runImgJob('imgUpscaleBtn','imgUpscaleProgWrap','imgUpscaleProgBar','imgUpscaleProgLabel','imgUpscaleResult',
+    '/image-upscale', { filename: imgFile.name, scale: _imgScale }, 'imgUpscale');
+}
+
+// ── Image Text
+function setImgTextPos(pos) {
+  _imgTextPos = pos;
+  document.querySelectorAll('#imgPosBtns .pos-btn').forEach((b, i) =>
+    b.classList.toggle('active', ['tl','bc','tr','bl','tc','br','center'][i] === pos));
+}
+function setImgTextColor(c) {
+  _imgTextColor = c;
+  document.querySelectorAll('#imgColorSwatches .color-swatch').forEach(b =>
+    b.classList.toggle('active', b.title.toLowerCase() === c));
+}
+async function runImgText() {
+  if (!imgFile) { toast('Upload an image first', 'err'); return; }
+  const text = document.getElementById('imgTextContent').value.trim();
+  if (!text) { toast('Enter text to overlay', 'err'); return; }
+  await _runImgJob('imgTextBtn','imgTextProgWrap','imgTextProgBar','imgTextProgLabel','imgTextResult',
+    '/image-text', {
+      filename: imgFile.name, text,
+      position: _imgTextPos,
+      size:     parseInt(document.getElementById('imgTextSize').value),
+      color:    _imgTextColor,
+    }, 'imgText');
+}
+
+// ── Image Object Scan + Remove
+async function runImgScan() {
+  if (!imgFile) { toast('Upload an image first', 'err'); return; }
+  const btn = document.getElementById('imgScanBtn');
+  btn.disabled = true; btn.classList.add('running');
+  btn.textContent = '🔍 Scanning…';
+  document.getElementById('imgObjList').innerHTML = '<div style="font-size:11px;color:var(--t3);padding:8px;text-align:center;">Scanning for objects…</div>';
+  try {
+    const r = await fetch(API + '/detect-image-objects/' + encodeURIComponent(imgFile.name));
+    const d = await r.json();
+    btn.disabled = false; btn.classList.remove('running'); btn.textContent = '🔍 Scan for Objects';
+    if (d.error) { toast('Scan failed: ' + d.error, 'err'); return; }
+    _renderImgObjects(d.objects || []);
+  } catch (err) {
+    btn.disabled = false; btn.classList.remove('running'); btn.textContent = '🔍 Scan for Objects';
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+function _renderImgObjects(objs) {
+  const list = document.getElementById('imgObjList');
+  if (!objs.length) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--t3);text-align:center;padding:8px;">No objects found</div>';
+    return;
+  }
+  list.innerHTML = objs.slice(0, 12).map((o, i) => {
+    const pct = Math.round(o.confidence * 100);
+    const col = pct >= 70 ? '#34d399' : pct >= 45 ? '#fbbf24' : '#f87171';
+    return `<div onclick="_selectImgObj(${i})" data-idx="${i}"
+              style="display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);cursor:pointer;margin-bottom:4px;font-size:11px;transition:all .15s;"
+              onmouseover="this.style.borderColor='rgba(129,140,248,.4)'" onmouseout="_updateImgObjHover(this,${i})">
+              <div style="width:8px;height:8px;border-radius:3px;background:${COLORS[i%COLORS.length]};flex-shrink:0;"></div>
+              <span style="flex:1;color:var(--t2);font-weight:600;text-transform:capitalize;">${o.label}</span>
+              <span style="color:${col};font-weight:700;font-family:monospace;">${pct}%</span>
+            </div>`;
+  }).join('');
+  // Store objects for selection
+  list._imgObjs = objs;
+  toast(objs.length + ' objects found — click one to select', 'ok');
+}
+
+const _imgObjs = [];
+function _selectImgObj(i) {
+  const list = document.getElementById('imgObjList');
+  const objs = list._imgObjs || [];
+  if (!objs[i]) return;
+  _imgSelectedObj = objs[i];
+  list.querySelectorAll('div[data-idx]').forEach((el, j) => {
+    el.style.background = j === i ? 'rgba(129,140,248,.12)' : 'rgba(255,255,255,.03)';
+    el.style.borderColor = j === i ? 'rgba(129,140,248,.5)' : 'rgba(255,255,255,.07)';
+  });
+  document.getElementById('imgSelectedObj').textContent =
+    'Selected: ' + _imgSelectedObj.label + ' (' + Math.round(_imgSelectedObj.confidence * 100) + '%)';
+  document.getElementById('imgRemoveSection').style.display = '';
+}
+function _updateImgObjHover(el, i) {
+  const list = document.getElementById('imgObjList');
+  const objs = list._imgObjs || [];
+  const isSelected = _imgSelectedObj && objs[i] && objs[i].bbox.join() === _imgSelectedObj.bbox.join();
+  el.style.borderColor = isSelected ? 'rgba(129,140,248,.5)' : 'rgba(255,255,255,.07)';
+}
+
+async function runImgObjRemove() {
+  if (!imgFile || !_imgSelectedObj) { toast('Select an object first', 'err'); return; }
+  await _runImgJob('imgRemoveBtn','imgRemoveProgWrap','imgRemoveProgBar','imgRemoveProgLabel','imgRemoveResult',
+    '/image-object-remove', { filename: imgFile.name, bbox: _imgSelectedObj.bbox }, 'imgRemove');
+}
+
+// ── Generic image job runner
+async function _runImgJob(btnId, wrapId, barId, lblId, resultId, url, body, jobKey) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = true; btn.classList.add('running');
+  document.getElementById(wrapId).classList.add('on');
+  document.getElementById(resultId).classList.remove('on');
+  document.getElementById(barId).style.width = '0%';
+  document.getElementById(lblId).textContent = 'Processing…';
+  try {
+    const r = await fetch(API + url, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!d.job_id) throw new Error(d.error || 'Failed to start');
+    imgJobs[jobKey] = d.job_id;
+    const startTime = Date.now();
+    const timer = setInterval(async () => {
+      try {
+        const sr = await fetch(API + '/status/' + d.job_id);
+        const s = await sr.json();
+        const pct = s.progress || 0;
+        document.getElementById(barId).style.width = pct + '%';
+        document.getElementById(lblId).textContent = 'Processing… ' + pct + '% · ' + _fmtElapsed(Date.now()-startTime);
+        if (s.status === 'completed') {
+          clearInterval(timer);
+          document.getElementById(barId).style.width = '100%';
+          document.getElementById(lblId).textContent = '✓ Done · ' + _fmtElapsed(Date.now()-startTime);
+          setTimeout(() => {
+            document.getElementById(wrapId).classList.remove('on');
+            document.getElementById(resultId).classList.add('on');
+            btn.disabled = false; btn.classList.remove('running');
+            // Show inline preview of result
+            const imgEl = document.getElementById('imgPreview');
+            imgEl.src = API + '/image-result/' + d.job_id + '?t=' + Date.now();
+            toast('Done! Click Download to save.', 'ok');
+          }, 400);
+        } else if (s.status === 'failed') {
+          clearInterval(timer);
+          document.getElementById(wrapId).classList.remove('on');
+          btn.disabled = false; btn.classList.remove('running');
+          toast('Failed: ' + (s.error || 'Unknown error').slice(0,100), 'err');
+        }
+      } catch (_) {}
+    }, 1500);
+  } catch (err) {
+    document.getElementById(wrapId).classList.remove('on');
+    btn.disabled = false; btn.classList.remove('running');
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+function downloadImgResult(jobKey) {
+  const jid = imgJobs[jobKey];
+  if (jid) window.open(API + '/image-result/' + jid, '_blank');
+  else toast('No result yet — run the tool first', 'err');
 }
 
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────

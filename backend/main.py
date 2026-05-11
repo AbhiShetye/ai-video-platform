@@ -14,6 +14,12 @@ from pipeline.novel_ai import (
     detect_filler_words, run_cut_segments, run_silence_remover,
     run_speech_enhance, detect_beats, run_auto_speedramp,
     run_smart_thumbnail, run_video_ocr,
+    run_face_blur, detect_scenes, run_ai_denoise,
+)
+from pipeline.image_tools import (
+    run_image_bg_remove, run_image_filter, run_image_crop,
+    run_image_upscale, run_image_text, run_image_object_remove,
+    detect_image_objects, IMG_UPLOAD_DIR,
 )
 from routes.ai_studio import router as ai_studio_router
 
@@ -461,3 +467,208 @@ def extract_audio(filename: str):
         check=True
     )
     return FileResponse(tmp, media_type="audio/mpeg", filename="audio.mp3")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# EXCLUSIVE AI VIDEO FEATURES
+# ══════════════════════════════════════════════════════════════════════
+
+class FaceBlurRequest(BaseModel):
+    filename: str
+    blur_strength: int = 45
+
+@app.post("/face-blur")
+def face_blur_ep(req: FaceBlurRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_face_blur,
+                     args=(path, req.blur_strength, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.get("/detect-scenes/{filename}")
+def detect_scenes_ep(filename: str, threshold: float = 27.0):
+    safe = os.path.basename(filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        raise HTTPException(404, "File not found")
+    try:
+        return detect_scenes(path, threshold=threshold)
+    except Exception as e:
+        return {"scenes": [], "count": 0, "error": str(e)}
+
+
+class DenoiseRequest(BaseModel):
+    filename: str
+    strength: float = 0.75
+
+@app.post("/ai-denoise")
+def ai_denoise_ep(req: DenoiseRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    strength = max(0.0, min(1.0, req.strength))
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_ai_denoise,
+                     args=(path, strength, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+# ══════════════════════════════════════════════════════════════════════
+# PHOTO EDITOR ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════
+
+_ALLOWED_IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+
+
+@app.post("/upload-image")
+async def upload_image(file: UploadFile = File(...)):
+    safe_name = os.path.basename(file.filename or "image")
+    ext = os.path.splitext(safe_name)[1].lower()
+    if ext not in _ALLOWED_IMG_EXT:
+        raise HTTPException(400, f"Unsupported image type '{ext}'")
+    dest = os.path.join(IMG_UPLOAD_DIR, safe_name)
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    from PIL import Image as _PILImage
+    try:
+        with _PILImage.open(dest) as img:
+            w, h = img.size
+    except Exception:
+        w = h = 0
+    return {"success": True, "filename": safe_name, "width": w, "height": h}
+
+
+@app.get("/detect-image-objects/{filename}")
+def detect_img_objects(filename: str):
+    safe = os.path.basename(filename)
+    path = os.path.join(IMG_UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        raise HTTPException(404, "Image not found")
+    try:
+        return {"objects": detect_image_objects(path)}
+    except Exception as e:
+        return {"objects": [], "error": str(e)}
+
+
+class ImgBgRemoveRequest(BaseModel):
+    filename: str
+    bg: str = "transparent"
+
+@app.post("/image-bg-remove")
+def img_bg_remove(req: ImgBgRemoveRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(IMG_UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "Image not found"}
+    jid = run_image_bg_remove(path, bg=req.bg)
+    return {"job_id": jid, "status": "processing"}
+
+
+class ImgFilterRequest(BaseModel):
+    filename: str
+    brightness: float = 1.0
+    contrast:   float = 1.0
+    saturation: float = 1.0
+    sharpness:  float = 1.0
+    blur:       float = 0.0
+
+@app.post("/image-filter")
+def img_filter(req: ImgFilterRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(IMG_UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "Image not found"}
+    jid = run_image_filter(path, {
+        "brightness": req.brightness, "contrast":   req.contrast,
+        "saturation": req.saturation, "sharpness":  req.sharpness,
+        "blur":       req.blur,
+    })
+    return {"job_id": jid, "status": "processing"}
+
+
+class ImgCropRequest(BaseModel):
+    filename: str
+    x: int = 0; y: int = 0
+    w: int; h: int
+    out_w: int = 0; out_h: int = 0
+
+@app.post("/image-crop")
+def img_crop(req: ImgCropRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(IMG_UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "Image not found"}
+    jid = run_image_crop(path, req.x, req.y, req.w, req.h, req.out_w, req.out_h)
+    return {"job_id": jid, "status": "processing"}
+
+
+class ImgUpscaleRequest(BaseModel):
+    filename: str
+    scale: int = 2
+
+@app.post("/image-upscale")
+def img_upscale(req: ImgUpscaleRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(IMG_UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "Image not found"}
+    if req.scale not in (2, 3, 4):
+        return {"error": "Scale must be 2, 3, or 4"}
+    jid = run_image_upscale(path, scale=req.scale)
+    return {"job_id": jid, "status": "processing"}
+
+
+class ImgTextRequest(BaseModel):
+    filename: str
+    text: str
+    position: str = "bc"
+    size: int = 48
+    color: str = "white"
+
+@app.post("/image-text")
+def img_text(req: ImgTextRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(IMG_UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "Image not found"}
+    if not req.text.strip():
+        return {"error": "Text cannot be empty"}
+    jid = run_image_text(path, req.text, req.position, req.size, req.color)
+    return {"job_id": jid, "status": "processing"}
+
+
+class ImgObjectRemoveRequest(BaseModel):
+    filename: str
+    bbox: list
+
+@app.post("/image-object-remove")
+def img_object_remove(req: ImgObjectRemoveRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(IMG_UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "Image not found"}
+    if not req.bbox or len(req.bbox) != 4:
+        return {"error": "bbox must be [x1,y1,x2,y2]"}
+    jid = run_image_object_remove(path, req.bbox)
+    return {"job_id": jid, "status": "processing"}
+
+
+@app.get("/image-result/{job_id}")
+def image_result(job_id: str):
+    s = get_job_status(job_id)
+    if s.get("status") == "completed" and s.get("is_image"):
+        out = s["output"]
+        ext = os.path.splitext(out)[1].lower()
+        media = "image/png" if ext == ".png" else "image/jpeg"
+        fname = "result.png" if ext == ".png" else "result.jpg"
+        return FileResponse(out, media_type=media, filename=fname)
+    if s.get("status") == "failed":
+        raise HTTPException(500, s.get("error", "Processing failed"))
+    raise HTTPException(425, "Not ready yet")
