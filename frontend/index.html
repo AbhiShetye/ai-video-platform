@@ -852,6 +852,123 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
           </div>
         </div>
 
+        <!-- FILLER WORD CUTTER -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#9986; Filler Word Cutter <span class="ai-badge">WHISPER AI</span></div>
+          <div class="ai-card-desc">Auto-detect and remove filler words ("um", "uh", "like", "basically") from speech. Review each detection before cutting.</div>
+          <button class="ai-btn" id="fillerDetectBtn" onclick="runDetectFillers()" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">&#128269; Scan for Fillers</button>
+          <div class="progress-wrap" id="fillerProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="fillerProgBar"></div></div>
+            <div class="prog-label" id="fillerProgLabel">Scanning speech with Whisper…</div>
+          </div>
+          <div id="fillerList" style="display:none;margin-top:10px;"></div>
+          <div class="ai-result" id="fillerResult">
+            <button class="dl-btn" onclick="downloadAiResult('filler')" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">&#11015; Download Cleaned Video</button>
+          </div>
+        </div>
+
+        <!-- SILENCE REMOVER -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#128263; Smart Silence Remover <span class="ai-badge">WHISPER AI</span></div>
+          <div class="ai-card-desc">Auto-detect and cut silent gaps. Keeps only segments with speech — perfect for podcasts and talking-head videos.</div>
+          <div class="stab-row"><span class="stab-label">Min Silence</span><input type="range" class="fslider" id="silenceThresh" min="0.5" max="5.0" step="0.5" value="1.0" oninput="document.getElementById('silenceThreshVal').textContent=this.value+'s'"><span class="stab-val" id="silenceThreshVal">1.0s</span></div>
+          <button class="ai-btn" id="silenceBtn" onclick="runSilenceRemover()" style="background:linear-gradient(135deg,#0891b2,#0e7490);">&#128263; Remove Silences</button>
+          <div class="progress-wrap" id="silenceProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="silenceProgBar"></div></div>
+            <div class="prog-label" id="silenceProgLabel">Detecting speech segments…</div>
+          </div>
+          <div class="ai-result" id="silenceResult">
+            <div style="display:flex;gap:8px;">
+              <button class="preview-btn" onclick="previewNovelJob('silence')">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('silence')" style="background:linear-gradient(135deg,#0891b2,#0e7490);">&#11015; Download</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SPEECH ENHANCER -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#127897; Speech Enhancer <span class="ai-badge">DSP AI</span></div>
+          <div class="ai-card-desc">Boost vocal clarity, reduce background noise, apply EQ and compression for broadcast-quality audio in one click.</div>
+          <button class="ai-btn" id="speechEnhBtn" onclick="runSpeechEnhance()" style="background:linear-gradient(135deg,#b45309,#d97706);">&#127897; Enhance Speech</button>
+          <div class="progress-wrap" id="speechEnhProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="speechEnhProgBar"></div></div>
+            <div class="prog-label" id="speechEnhProgLabel">Enhancing audio…</div>
+          </div>
+          <div class="ai-result" id="speechEnhResult">
+            <div style="display:flex;gap:8px;">
+              <button class="preview-btn" onclick="previewNovelJob('speechEnh')">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('speechEnh')" style="background:linear-gradient(135deg,#b45309,#d97706);">&#11015; Download Enhanced</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BEAT SYNC DETECTOR -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#127941; Beat Sync Detector <span class="ai-badge">LIBROSA</span></div>
+          <div class="ai-card-desc">Analyze music tempo and detect every beat timestamp. Click any beat chip to jump to that moment in the video.</div>
+          <button class="ai-btn" id="beatBtn" onclick="runDetectBeats()" style="background:linear-gradient(135deg,#dc2626,#9b1b30);">&#127941; Detect Beats</button>
+          <div class="progress-wrap" id="beatProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="beatProgBar"></div></div>
+            <div class="prog-label" id="beatProgLabel">Analyzing audio for beat sync…</div>
+          </div>
+          <div id="beatResultPanel" style="display:none;margin-top:10px;background:rgba(129,140,248,.08);border:1px solid rgba(129,140,248,.2);border-radius:8px;padding:12px;">
+            <div id="beatBpm" style="font-size:26px;font-weight:800;color:var(--p);text-align:center;margin-bottom:4px;">-- BPM</div>
+            <div id="beatInfo" style="font-size:11px;color:var(--t3);text-align:center;margin-bottom:10px;"></div>
+            <div id="beatMarkers" style="display:flex;flex-wrap:wrap;gap:3px;max-height:80px;overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <!-- AUTO SPEED RAMP -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#9889; Auto Speed Ramp <span class="ai-badge">AI MOTION</span></div>
+          <div class="ai-card-desc">Intelligently slow down calm moments and speed up action sequences based on motion analysis. Creates dynamic, cinematic feel.</div>
+          <div class="stab-row"><span class="stab-label">Slow Factor</span><input type="range" class="fslider" id="rampSlow" min="0.25" max="1.0" step="0.25" value="0.5" oninput="document.getElementById('rampSlowVal').textContent=this.value+'x'"><span class="stab-val" id="rampSlowVal">0.5x</span></div>
+          <div class="stab-row"><span class="stab-label">Fast Factor</span><input type="range" class="fslider" id="rampFast" min="1.5" max="5.0" step="0.5" value="3.0" oninput="document.getElementById('rampFastVal').textContent=this.value+'x'"><span class="stab-val" id="rampFastVal">3.0x</span></div>
+          <div class="stab-row"><span class="stab-label">Window</span><input type="range" class="fslider" id="rampWindow" min="1" max="5" step="0.5" value="2" oninput="document.getElementById('rampWindowVal').textContent=this.value+'s'"><span class="stab-val" id="rampWindowVal">2s</span></div>
+          <button class="ai-btn" id="rampBtn" onclick="runSpeedRamp()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">&#9889; Apply Speed Ramp</button>
+          <div class="progress-wrap" id="rampProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="rampProgBar"></div></div>
+            <div class="prog-label" id="rampProgLabel">Analyzing motion…</div>
+          </div>
+          <div class="ai-result" id="rampResult">
+            <div style="display:flex;gap:8px;">
+              <button class="preview-btn" onclick="previewNovelJob('ramp')">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('ramp')" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">&#11015; Download Ramped</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SMART THUMBNAIL -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#128444; Smart Thumbnail <span class="ai-badge">YOLO + VISION</span></div>
+          <div class="ai-card-desc">AI picks the most compelling frame using sharpness, composition, face detection and rule-of-thirds scoring.</div>
+          <button class="ai-btn" id="thumbBtn" onclick="runSmartThumbnail()" style="background:linear-gradient(135deg,#059669,#065f46);">&#128444; Generate Thumbnail</button>
+          <div class="progress-wrap" id="thumbProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="thumbProgBar"></div></div>
+            <div class="prog-label" id="thumbProgLabel">Scoring frames…</div>
+          </div>
+          <div class="ai-result" id="thumbResult">
+            <img id="thumbPreview" src="" style="width:100%;border-radius:8px;margin-bottom:8px;display:none;" alt="thumbnail">
+            <button class="dl-btn" onclick="downloadThumbnail()" style="background:linear-gradient(135deg,#059669,#065f46);">&#11015; Download Thumbnail</button>
+          </div>
+        </div>
+
+        <!-- IN-VIDEO OCR -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#128292; In-Video OCR <span class="ai-badge">EASYOCR</span></div>
+          <div class="ai-card-desc">Extract and index all text visible in your video frames. Search through on-screen text with jump-to-timestamp links.</div>
+          <button class="ai-btn" id="ocrBtn" onclick="runVideoOcr()" style="background:linear-gradient(135deg,#6366f1,#4338ca);">&#128292; Scan for Text</button>
+          <div class="progress-wrap" id="ocrProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="ocrProgBar"></div></div>
+            <div class="prog-label" id="ocrProgLabel">Scanning video frames for text…</div>
+          </div>
+          <div class="ai-result" id="ocrResult">
+            <input type="text" id="ocrSearch" placeholder="Search text in video…" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:var(--t1);font-size:12px;margin-bottom:8px;outline:none;" oninput="filterOcrResults()">
+            <div id="ocrEntries" style="max-height:180px;overflow-y:auto;border-radius:6px;background:rgba(255,255,255,.03);"></div>
+            <div id="ocrCount" style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px;"></div>
+          </div>
+        </div>
+
       </div>
     </div><!-- end #content-ai -->
 
@@ -2075,6 +2192,233 @@ function previewAiJob(btnId) {
   const v = document.getElementById('vid');
   v.src = API + '/download/' + jid; v.load(); v.play();
   toast('Previewing stabilized video', 'ok');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NOVEL AI FEATURES — Filler Cut, Silence, Speech, Beats, SpeedRamp, Thumb, OCR
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Extend job tracker
+Object.assign(_aiJobs, { filler: null, silence: null, speechEnh: null, ramp: null, thumb: null, ocr: null });
+
+let _fillerWords = [];
+let _ocrEntries  = [];
+
+function downloadAiResult(key) {
+  const jid = _aiJobs[key];
+  if (jid) window.open(API + '/download/' + jid, '_blank');
+  else toast('No result yet', 'err');
+}
+
+function previewNovelJob(key) {
+  const jid = _aiJobs[key];
+  if (!jid) { toast('No result yet', 'err'); return; }
+  const v = document.getElementById('vid');
+  v.src = API + '/download/' + jid; v.load(); v.play();
+  toast('Previewing result', 'ok');
+}
+
+// ── FILLER WORD CUTTER ────────────────────────────────────────────────
+async function runDetectFillers() {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  const btn = document.getElementById('fillerDetectBtn');
+  btn.disabled = true; btn.classList.add('running');
+  document.getElementById('fillerProgWrap').classList.add('on');
+  document.getElementById('fillerList').style.display = 'none';
+  document.getElementById('fillerResult').classList.remove('on');
+  document.getElementById('fillerProgBar').style.width = '30%';
+  document.getElementById('fillerProgLabel').textContent = 'Scanning speech with Whisper…';
+  try {
+    const r = await fetch(API + '/detect-fillers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: videoFile.name })
+    });
+    const d = await r.json();
+    document.getElementById('fillerProgBar').style.width = '100%';
+    setTimeout(() => document.getElementById('fillerProgWrap').classList.remove('on'), 500);
+    btn.disabled = false; btn.classList.remove('running');
+    if (d.error) { toast('Error: ' + d.error, 'err'); return; }
+    _fillerWords = d.fillers || [];
+    _renderFillerList();
+  } catch (err) {
+    document.getElementById('fillerProgWrap').classList.remove('on');
+    btn.disabled = false; btn.classList.remove('running');
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+function _renderFillerList() {
+  const el = document.getElementById('fillerList');
+  if (!_fillerWords.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--t3);text-align:center;padding:12px;">No filler words detected!</div>';
+    el.style.display = '';
+    return;
+  }
+  let html = `<div style="font-size:11px;color:var(--t2);margin-bottom:8px;">${_fillerWords.length} filler words found. Check all you want to cut:</div>`;
+  html += '<div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;margin-bottom:10px;">';
+  _fillerWords.forEach((f, i) => {
+    html += `<label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;padding:5px 7px;border-radius:5px;background:rgba(255,255,255,.04);">
+      <input type="checkbox" checked data-idx="${i}" style="accent-color:var(--p);">
+      <span style="color:var(--p);font-weight:700;">"${f.word}"</span>
+      <span style="color:var(--t3);">@ ${f.start.toFixed(2)}s</span>
+    </label>`;
+  });
+  html += `</div><button class="ai-btn" onclick="runCutFillers()" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">&#9986; Cut Selected Fillers</button>`;
+  el.innerHTML = html;
+  el.style.display = '';
+}
+
+function runCutFillers() {
+  const checks = document.querySelectorAll('#fillerList input[type=checkbox]');
+  const segments = [];
+  checks.forEach(cb => {
+    if (cb.checked) {
+      const f = _fillerWords[+cb.dataset.idx];
+      segments.push({ start: f.start, end: f.end });
+    }
+  });
+  if (!segments.length) { toast('No fillers selected', 'err'); return; }
+  _startAiJob(
+    'fillerDetectBtn', 'fillerProgWrap', 'fillerProgBar', 'fillerProgLabel', 'fillerResult',
+    '/cut-segments',
+    { filename: videoFile.name, segments },
+    (s, jid) => { _aiJobs.filler = jid; }
+  );
+}
+
+// ── SILENCE REMOVER ───────────────────────────────────────────────────
+function runSilenceRemover() {
+  const minSil = parseFloat(document.getElementById('silenceThresh').value);
+  _startAiJob(
+    'silenceBtn', 'silenceProgWrap', 'silenceProgBar', 'silenceProgLabel', 'silenceResult',
+    '/remove-silences',
+    { filename: videoFile.name, min_silence_sec: minSil },
+    (s, jid) => { _aiJobs.silence = jid; }
+  );
+}
+
+// ── SPEECH ENHANCER ───────────────────────────────────────────────────
+function runSpeechEnhance() {
+  _startAiJob(
+    'speechEnhBtn', 'speechEnhProgWrap', 'speechEnhProgBar', 'speechEnhProgLabel', 'speechEnhResult',
+    '/enhance-speech',
+    { filename: videoFile.name },
+    (s, jid) => { _aiJobs.speechEnh = jid; }
+  );
+}
+
+// ── BEAT SYNC DETECTOR ────────────────────────────────────────────────
+async function runDetectBeats() {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  const btn = document.getElementById('beatBtn');
+  btn.disabled = true; btn.classList.add('running');
+  document.getElementById('beatProgWrap').classList.add('on');
+  document.getElementById('beatResultPanel').style.display = 'none';
+  document.getElementById('beatProgBar').style.width = '15%';
+  document.getElementById('beatProgLabel').textContent = 'Extracting audio & analyzing beats…';
+  try {
+    const r = await fetch(API + '/detect-beats/' + encodeURIComponent(videoFile.name));
+    const d = await r.json();
+    document.getElementById('beatProgBar').style.width = '100%';
+    setTimeout(() => document.getElementById('beatProgWrap').classList.remove('on'), 500);
+    btn.disabled = false; btn.classList.remove('running');
+    if (d.error) { toast('Beat detection failed: ' + d.error, 'err'); return; }
+    _renderBeatResult(d);
+  } catch (err) {
+    document.getElementById('beatProgWrap').classList.remove('on');
+    btn.disabled = false; btn.classList.remove('running');
+    toast('Error: ' + err.message, 'err');
+  }
+}
+
+function _renderBeatResult(d) {
+  document.getElementById('beatBpm').textContent = (d.bpm || 0).toFixed(1) + ' BPM';
+  document.getElementById('beatInfo').textContent =
+    `${(d.beats || []).length} beats · ${(d.downbeats || []).length} downbeats`;
+  const markers = document.getElementById('beatMarkers');
+  markers.innerHTML = '';
+  (d.beats || []).slice(0, 80).forEach(t => {
+    const chip = document.createElement('div');
+    chip.style.cssText = 'background:rgba(129,140,248,.15);border:1px solid rgba(129,140,248,.3);border-radius:4px;padding:2px 7px;font-size:9px;color:var(--p);cursor:pointer;';
+    chip.textContent = t.toFixed(2) + 's';
+    chip.title = 'Jump to ' + t.toFixed(2) + 's';
+    chip.onclick = () => { const v = document.getElementById('vid'); if (v) v.currentTime = t; };
+    markers.appendChild(chip);
+  });
+  document.getElementById('beatResultPanel').style.display = '';
+}
+
+// ── AUTO SPEED RAMP ───────────────────────────────────────────────────
+function runSpeedRamp() {
+  _startAiJob(
+    'rampBtn', 'rampProgWrap', 'rampProgBar', 'rampProgLabel', 'rampResult',
+    '/auto-speedramp',
+    {
+      filename:    videoFile.name,
+      slow_factor: parseFloat(document.getElementById('rampSlow').value),
+      fast_factor: parseFloat(document.getElementById('rampFast').value),
+      window_sec:  parseFloat(document.getElementById('rampWindow').value),
+    },
+    (s, jid) => { _aiJobs.ramp = jid; }
+  );
+}
+
+// ── SMART THUMBNAIL ───────────────────────────────────────────────────
+function runSmartThumbnail() {
+  _startAiJob(
+    'thumbBtn', 'thumbProgWrap', 'thumbProgBar', 'thumbProgLabel', 'thumbResult',
+    '/smart-thumbnail',
+    { filename: videoFile.name },
+    (s, jid) => {
+      _aiJobs.thumb = jid;
+      const img = document.getElementById('thumbPreview');
+      img.src = API + '/download-thumbnail/' + jid + '?t=' + Date.now();
+      img.style.display = '';
+      img.onerror = () => { img.style.display = 'none'; };
+    }
+  );
+}
+
+function downloadThumbnail() {
+  const jid = _aiJobs.thumb;
+  if (jid) window.open(API + '/download-thumbnail/' + jid, '_blank');
+  else toast('No thumbnail yet', 'err');
+}
+
+// ── IN-VIDEO OCR ──────────────────────────────────────────────────────
+function runVideoOcr() {
+  _startAiJob(
+    'ocrBtn', 'ocrProgWrap', 'ocrProgBar', 'ocrProgLabel', 'ocrResult',
+    '/video-ocr',
+    { filename: videoFile.name },
+    async (s, jid) => {
+      _aiJobs.ocr = jid;
+      try {
+        const r = await fetch(API + '/ocr-results/' + jid);
+        const d = await r.json();
+        _ocrEntries = d.entries || [];
+        document.getElementById('ocrCount').textContent = `${_ocrEntries.length} text entries indexed`;
+        filterOcrResults();
+      } catch (_) {}
+    }
+  );
+}
+
+function filterOcrResults() {
+  const q = (document.getElementById('ocrSearch')?.value || '').toLowerCase().trim();
+  const filtered = q ? _ocrEntries.filter(e => e.text.toLowerCase().includes(q)) : _ocrEntries;
+  const container = document.getElementById('ocrEntries');
+  if (!container) return;
+  if (!filtered.length) {
+    container.innerHTML = '<div style="color:var(--t3);padding:10px;text-align:center;font-size:11px;">No text found</div>';
+    return;
+  }
+  container.innerHTML = filtered.slice(0, 100).map(e => `
+    <div onclick="document.getElementById('vid').currentTime=${e.time}" title="Jump to ${e.time.toFixed(1)}s"
+         style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;font-size:11px;">
+      <span style="color:var(--p);font-size:10px;min-width:34px;font-weight:700;">${e.time.toFixed(1)}s</span>
+      <span style="color:var(--t2);">${e.text}</span>
+    </div>`).join('');
 }
 
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────

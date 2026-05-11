@@ -10,6 +10,11 @@ load_dotenv()
 from pipeline.engine import (run_pipeline, run_magic_erase, run_mute_audio,
                              run_quick_edit, get_job_status, jobs)
 from pipeline.ai_tools import run_auto_captions, run_bg_remove, run_stabilize
+from pipeline.novel_ai import (
+    detect_filler_words, run_cut_segments, run_silence_remover,
+    run_speech_enhance, detect_beats, run_auto_speedramp,
+    run_smart_thumbnail, run_video_ocr,
+)
 from routes.ai_studio import router as ai_studio_router
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -260,6 +265,151 @@ def download_srt(job_id: str):
     if s.get("status") == "completed" and srt and os.path.exists(srt):
         return FileResponse(srt, media_type="text/plain", filename="captions.srt")
     return {"error": "SRT not available"}
+
+
+# ── NOVEL AI ENDPOINTS ────────────────────────────────────────────────────────
+
+class FilenameRequest(BaseModel):
+    filename: str
+
+@app.post("/detect-fillers")
+def detect_fillers_ep(req: FilenameRequest):
+    """Immediate: returns list of filler words with timestamps (no job)."""
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    try:
+        fillers = detect_filler_words(path)
+        return {"fillers": fillers, "count": len(fillers)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+class CutSegmentsRequest(BaseModel):
+    filename: str
+    segments: list  # [{start, end}, ...]
+
+@app.post("/cut-segments")
+def cut_segments_ep(req: CutSegmentsRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    if not req.segments:
+        return {"error": "No segments provided"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_cut_segments,
+                     args=(path, req.segments, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+class SilenceRequest(BaseModel):
+    filename: str
+    min_silence_sec: float = 1.0
+
+@app.post("/remove-silences")
+def remove_silences_ep(req: SilenceRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_silence_remover,
+                     args=(path, req.min_silence_sec, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.post("/enhance-speech")
+def enhance_speech_ep(req: FilenameRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_speech_enhance,
+                     args=(path, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.get("/detect-beats/{filename}")
+def detect_beats_ep(filename: str):
+    """Immediate: returns BPM + beat timestamps."""
+    safe = os.path.basename(filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        raise HTTPException(404, "File not found")
+    try:
+        return detect_beats(path)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+class SpeedRampRequest(BaseModel):
+    filename: str
+    slow_factor:  float = 0.5
+    fast_factor:  float = 3.0
+    window_sec:   float = 2.0
+
+@app.post("/auto-speedramp")
+def auto_speedramp_ep(req: SpeedRampRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_auto_speedramp,
+                     args=(path, req.slow_factor, req.fast_factor,
+                           req.window_sec, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.post("/smart-thumbnail")
+def smart_thumbnail_ep(req: FilenameRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_smart_thumbnail,
+                     args=(path, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.get("/download-thumbnail/{job_id}")
+def download_thumbnail(job_id: str):
+    s = get_job_status(job_id)
+    if s.get("status") == "completed" and s.get("is_image"):
+        return FileResponse(s["output"], media_type="image/jpeg",
+                            filename="thumbnail.jpg")
+    return {"error": "Not ready"}
+
+
+@app.post("/video-ocr")
+def video_ocr_ep(req: FilenameRequest):
+    safe = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(target=run_video_ocr,
+                     args=(path, job_id), daemon=True).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.get("/ocr-results/{job_id}")
+def ocr_results(job_id: str):
+    s = get_job_status(job_id)
+    if s.get("status") == "completed":
+        return {"entries": s.get("ocr_index", []),
+                "total": s.get("total_entries", 0)}
+    return {"status": s.get("status", "unknown")}
 
 
 @app.get("/extract-audio/{filename}")
