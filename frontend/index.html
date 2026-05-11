@@ -1850,6 +1850,137 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
 /* ── PROC/ERASE BTN GLOW ON HOVER ───────────────────────────────────── */
 .proc-btn:hover{box-shadow:0 10px 40px rgba(139,92,246,.65),0 0 0 1px rgba(139,92,246,.3),inset 0 1px 0 rgba(255,255,255,.2)!important;}
 .erase-btn:hover{box-shadow:0 10px 40px rgba(239,68,68,.55),inset 0 1px 0 rgba(255,255,255,.2)!important;}
+
+/* ═══════════════════════════════════════════════════════════
+   10/10 UX POLISH
+   ═══════════════════════════════════════════════════════════ */
+
+/* AI Search */
+.ai-search-wrap{
+  position:sticky;top:0;z-index:5;
+  display:flex;align-items:center;gap:8px;
+  background:rgba(8,8,24,.95);
+  padding:10px 4px 8px;margin-bottom:8px;
+  border-bottom:1px solid rgba(139,92,246,.1);
+  backdrop-filter:blur(12px);
+}
+.ai-search-wrap input{
+  flex:1;background:rgba(255,255,255,.05);
+  border:1px solid rgba(139,92,246,.18);border-radius:9px;
+  padding:8px 12px 8px 10px;color:var(--t1);font-size:12px;
+  outline:none;font-family:inherit;
+  transition:border-color .15s,box-shadow .15s;
+}
+.ai-search-wrap input:focus{border-color:rgba(139,92,246,.5);box-shadow:0 0 0 3px rgba(139,92,246,.1);}
+.ai-search-wrap input::placeholder{color:rgba(75,82,128,.7);}
+.ai-search-icon{font-size:14px;color:var(--t3);}
+.ai-card-count{font-size:10px;color:var(--t3);white-space:nowrap;font-weight:600;}
+
+/* AI Acc group — tighter */
+.ai-acc-group .acc-header{
+  background:rgba(139,92,246,.06);
+  border:1px solid rgba(139,92,246,.12);
+  font-size:10px;font-weight:800;letter-spacing:1px;
+  color:rgba(196,181,253,.8);
+  margin-bottom:6px;
+}
+.ai-acc-group .acc-header:hover{background:rgba(139,92,246,.12);color:var(--p);}
+.ai-acc-group .acc-body{padding-top:0;}
+
+/* AI tip text */
+.ai-tip{
+  font-size:10.5px;color:rgba(75,82,128,.8);
+  background:rgba(139,92,246,.06);border-radius:7px;
+  padding:6px 9px;margin-bottom:10px;line-height:1.5;
+}
+
+/* Grab time link */
+.grab-time-link{
+  font-size:9px;color:var(--p);cursor:pointer;font-weight:700;
+  letter-spacing:.2px;
+  transition:color .15s;
+}
+.grab-time-link:hover{color:var(--violet);}
+
+/* OCR search input */
+.ocr-search-input{
+  width:100%;box-sizing:border-box;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(139,92,246,.18);
+  border-radius:8px;padding:7px 10px;
+  color:var(--t1);font-size:12px;
+  margin-bottom:8px;outline:none;font-family:inherit;
+  transition:border-color .15s;
+}
+.ocr-search-input:focus{border-color:rgba(139,92,246,.45);}
+
+/* Retry button */
+.retry-btn{
+  display:none;margin-top:6px;width:100%;
+  padding:7px;border-radius:9px;font-family:inherit;
+  background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);
+  color:var(--red);font-size:11px;font-weight:700;
+  cursor:pointer;transition:all .15s;
+}
+.retry-btn.show{display:block;}
+.retry-btn:hover{background:rgba(248,113,113,.2);border-color:rgba(248,113,113,.45);}
+
+/* Model loading state */
+.model-loading-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 8px;border-radius:6px;
+  background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);
+  color:#fcd34d;font-size:9.5px;font-weight:700;
+  margin-bottom:8px;
+}
+
+/* Before/after toggle */
+.ba-toggle{
+  display:flex;gap:4px;margin-bottom:8px;
+}
+.ba-btn{
+  flex:1;padding:6px 8px;border-radius:8px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  color:var(--t3);font-size:11px;font-weight:700;
+  cursor:pointer;font-family:inherit;transition:all .15s;text-align:center;
+}
+.ba-btn.active{
+  background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.35);color:var(--p);
+}
+.ba-btn:hover:not(.active){background:rgba(255,255,255,.07);color:var(--t2);}
+
+/* Mute timeline markers */
+.tl-mute-seg{
+  position:absolute;top:0;height:100%;
+  background:rgba(99,102,241,.35);
+  border-left:1px solid rgba(99,102,241,.6);
+  border-right:1px solid rgba(99,102,241,.6);
+  pointer-events:none;
+}
+
+/* Processing estimate label */
+.proc-estimate{
+  font-size:10px;color:rgba(139,92,246,.6);
+  font-weight:700;letter-spacing:.2px;
+}
+
+/* Completion banner */
+.done-banner{
+  display:none;align-items:center;gap:8px;
+  padding:9px 12px;border-radius:10px;
+  background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);
+  margin-bottom:8px;
+}
+.done-banner.show{display:flex;animation:fadein .3s ease;}
+.done-banner-icon{font-size:16px;}
+.done-banner-text{font-size:12px;color:var(--em);font-weight:600;}
+
+/* Better scroll fade */
+.tools-body,.panel-body{
+  mask-image:linear-gradient(180deg,transparent 0,#000 12px,#000 calc(100% - 16px),transparent 100%);
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12px,#000 calc(100% - 16px),transparent 100%);
+  padding-top:4px;
+}
 </style>
 </head>
 <body>
@@ -1943,6 +2074,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
         <div class="dz-headline">
           <div class="dz-title">Drop your video here</div>
           <div class="dz-sub">or click to browse &mdash; AI editing in seconds</div>
+          <div style="font-size:10px;color:rgba(75,82,128,.55);margin-top:5px;letter-spacing:.3px;">Free &nbsp;&#183;&nbsp; Local &nbsp;&#183;&nbsp; No data leaves your device</div>
         </div>
         <div class="dz-fmts">
           <div class="dz-fmt">MP4</div>
@@ -2009,10 +2141,11 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
       <div class="panel-sec">
         <div class="panel-label">Detected Objects</div>
         <div class="conf-row">
-          <label>Min Confidence</label>
+          <label>Sensitivity</label>
           <input type="range" id="confThreshold" min="0" max="95" value="40" oninput="onConfChange()">
           <span class="conf-val" id="confVal">40%</span>
         </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:-6px;margin-bottom:6px;padding:0 2px;"><span>Show more</span><span>Show fewer</span></div>
         <div class="obj-count" id="objCount"></div>
         <div id="objList">
           <div class="obj-none" id="emptyState">
@@ -2026,7 +2159,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
         </div>
         <div class="scan-row">
           <button class="detect-btn" id="detectBtn" onclick="runDetect()" disabled>&#8635; Scan</button>
-          <label class="scan-toggle" title="Scan entire video (slower)"><input type="checkbox" id="fullScanChk"> Full Video</label>
+          <label class="scan-toggle" title="Scan every 2s of the full video — finds more objects but takes longer"><input type="checkbox" id="fullScanChk"> Full Scan &#9432;</label>
         </div>
       </div>
 
@@ -2039,7 +2172,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
       </div>
 
       <div class="panel-sec" id="rangeSec" style="display:none;">
-        <div class="panel-label">Remove from (seconds)</div>
+        <div class="panel-label">Remove object during</div>
         <div class="time-row">
           <div class="tf"><label>Start</label><input type="number" id="tStart" value="0" min="0" step="0.1" oninput="syncTimeline()"></div>
           <div class="tf"><label>End</label><input type="number" id="tEnd" value="5" min="0" step="0.1" oninput="syncTimeline()"></div>
@@ -2096,8 +2229,14 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
         <div class="audio-hint">Add time segments to silence. Audio outside these ranges is kept intact.</div>
         <div id="segList"><div class="seg-none">No segments added yet</div></div>
         <div class="seg-add-row">
-          <div class="tf"><label>Start (s)</label><input type="number" id="segStart" value="0" min="0" step="0.1"></div>
-          <div class="tf"><label>End (s)</label><input type="number" id="segEnd" value="5" min="0" step="0.1"></div>
+          <div class="tf">
+            <label style="display:flex;justify-content:space-between;">Start (s) <span class="grab-time-link" onclick="grabTime('segStart')" title="Use current playhead position">&#9201; Now</span></label>
+            <input type="number" id="segStart" value="0" min="0" step="0.1">
+          </div>
+          <div class="tf">
+            <label style="display:flex;justify-content:space-between;">End (s) <span class="grab-time-link" onclick="grabTime('segEnd')" title="Use current playhead position">&#9201; Now</span></label>
+            <input type="number" id="segEnd" value="5" min="0" step="0.1">
+          </div>
           <button class="add-seg-btn" onclick="addSegment()">+ Add</button>
         </div>
       </div>
@@ -2123,7 +2262,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           <div class="acc-header" onclick="toggleAcc(this)">
             <span>&#9881; Transform &amp; Timing</span><span class="acc-arrow">&#8964;</span>
           </div>
-          <div class="acc-body open">
+          <div class="acc-body closed">
 
         <div class="tool-card">
           <div class="tool-card-title">&#9986; Trim Video</div>
@@ -2159,7 +2298,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           <div class="acc-header" onclick="toggleAcc(this)">
             <span>&#127774; Enhance &amp; Color</span><span class="acc-arrow">&#8964;</span>
           </div>
-          <div class="acc-body open">
+          <div class="acc-body closed">
 
         <div class="tool-card">
           <div class="tool-card-title">&#127774; Color &amp; Filters</div>
@@ -2232,7 +2371,7 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           <div class="acc-header" onclick="toggleAcc(this)">
             <span>&#128190; Export &amp; Creative</span><span class="acc-arrow">&#8964;</span>
           </div>
-          <div class="acc-body open">
+          <div class="acc-body closed">
 
         <div class="tool-card">
           <div class="tool-card-title">&#128190; Export &amp; Compress</div>
@@ -2372,10 +2511,25 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
     <div id="content-ai" style="display:none;flex:1;overflow:hidden;">
       <div class="tools-body">
 
+        <!-- AI SEARCH BAR -->
+        <div class="ai-search-wrap">
+          <span class="ai-search-icon">&#128269;</span>
+          <input type="text" id="aiSearch" placeholder="Search AI tools…" oninput="filterAiCards(this.value)" autocomplete="off">
+          <span class="ai-card-count" id="aiCardCount"></span>
+        </div>
+
+        <!-- GROUP 1: SPEECH & AUDIO -->
+        <div class="acc-group ai-acc-group">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <span>&#127908; Speech &amp; Audio <span style="font-size:9px;color:var(--t3);margin-left:5px;font-weight:600;text-transform:none;letter-spacing:0;">5 tools</span></span>
+            <span class="acc-arrow">&#8964;</span>
+          </div>
+          <div class="acc-body open">
+
         <!-- AUTO CAPTIONS -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#127908; Auto Captions <span class="ai-badge">WHISPER AI</span></div>
-          <div class="ai-card-desc">Automatically transcribe speech and burn subtitles into your video. Supports 90+ languages.</div>
+        <div class="ai-card" data-ai-name="auto captions whisper transcribe subtitle">
+          <div class="ai-card-title">&#127908; Auto Captions <span class="ai-badge" style="background:rgba(139,92,246,.2);border-color:rgba(139,92,246,.35);color:#c4b5fd;">WHISPER</span></div>
+          <div class="ai-card-desc">Transcribe speech and burn subtitles into your video. Supports 90+ languages with word-level accuracy.</div>
           <div style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Language</div>
           <select class="lang-select" id="captionLang">
             <option value="auto">Auto-detect</option>
@@ -2419,11 +2573,104 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           </div>
         </div>
 
+        <!-- FILLER WORD CUTTER -->
+        <div class="ai-card" data-ai-name="filler word um uh like cut remove whisper">
+          <div class="ai-card-title">&#9986; Filler Word Cutter <span class="ai-badge" style="background:rgba(139,92,246,.2);border-color:rgba(139,92,246,.35);color:#c4b5fd;">WHISPER</span></div>
+          <div class="ai-card-desc">Auto-detects "um", "uh", "like", "basically" and other speech fillers. Review each one and choose which to cut before processing.</div>
+          <button class="ai-btn" id="fillerDetectBtn" onclick="runDetectFillers()" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">&#128269; Scan for Fillers</button>
+          <div class="progress-wrap" id="fillerProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="fillerProgBar"></div></div>
+            <div class="prog-label" id="fillerProgLabel">Scanning speech with Whisper AI…</div>
+          </div>
+          <div id="fillerList" style="display:none;margin-top:10px;"></div>
+          <div class="ai-result" id="fillerResult">
+            <button class="dl-btn" onclick="downloadAiResult('filler')" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">&#11015; Download Cleaned Video</button>
+            <button class="use-src-btn" style="width:100%;margin-top:6px;" onclick="useAsSource(_aiJobs.filler)">&#8635; Continue Editing This</button>
+          </div>
+        </div>
+
+        <!-- SILENCE REMOVER -->
+        <div class="ai-card" data-ai-name="silence remove gaps podcast speech whisper">
+          <div class="ai-card-title">&#128263; Silence Remover <span class="ai-badge" style="background:rgba(139,92,246,.2);border-color:rgba(139,92,246,.35);color:#c4b5fd;">WHISPER</span></div>
+          <div class="ai-card-desc">Cuts silent gaps automatically. Great for podcasts, lectures, and interviews where pauses slow the pace.</div>
+          <div class="stab-row">
+            <span class="stab-label">Min gap to cut</span>
+            <input type="range" class="fslider" id="silenceThresh" min="0.5" max="5.0" step="0.5" value="1.0" oninput="document.getElementById('silenceThreshVal').textContent=this.value+'s'">
+            <span class="stab-val" id="silenceThreshVal">1.0s</span>
+          </div>
+          <div class="ai-tip">&#9432; 1.0s works for most content. Lower for faster pacing, higher to keep natural pauses.</div>
+          <button class="ai-btn" id="silenceBtn" onclick="runSilenceRemover()" style="background:linear-gradient(135deg,#0891b2,#0e7490);">&#128263; Remove Silences</button>
+          <div class="progress-wrap" id="silenceProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="silenceProgBar"></div></div>
+            <div class="prog-label" id="silenceProgLabel">Detecting speech segments…</div>
+          </div>
+          <div class="ai-result" id="silenceResult">
+            <div style="display:flex;gap:6px;">
+              <button class="preview-btn" onclick="previewNovelJob('silence')" style="flex:1;">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('silence')" style="flex:2;background:linear-gradient(135deg,#0891b2,#0e7490);">&#11015; Download</button>
+            </div>
+            <button class="use-src-btn" style="width:100%;margin-top:6px;" onclick="useAsSource(_aiJobs.silence)">&#8635; Continue Editing This</button>
+          </div>
+        </div>
+
+        <!-- SPEECH ENHANCER -->
+        <div class="ai-card" data-ai-name="speech enhance vocal clarity noise eq compression audio">
+          <div class="ai-card-title">&#127897; Speech Enhancer <span class="ai-badge" style="background:rgba(180,83,9,.2);border-color:rgba(217,119,6,.35);color:#fcd34d;">DSP</span></div>
+          <div class="ai-card-desc">Boosts vocal clarity with EQ, noise gate, and compression in one click. Makes any microphone sound broadcast-ready.</div>
+          <button class="ai-btn" id="speechEnhBtn" onclick="runSpeechEnhance()" style="background:linear-gradient(135deg,#b45309,#d97706);">&#127897; Enhance Speech</button>
+          <div class="progress-wrap" id="speechEnhProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="speechEnhProgBar"></div></div>
+            <div class="prog-label" id="speechEnhProgLabel">Enhancing audio…</div>
+          </div>
+          <div class="ai-result" id="speechEnhResult">
+            <div style="display:flex;gap:6px;">
+              <button class="preview-btn" onclick="previewNovelJob('speechEnh')" style="flex:1;">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('speechEnh')" style="flex:2;background:linear-gradient(135deg,#b45309,#d97706);">&#11015; Download</button>
+            </div>
+            <button class="use-src-btn" style="width:100%;margin-top:6px;" onclick="useAsSource(_aiJobs.speechEnh)">&#8635; Continue Editing This</button>
+          </div>
+        </div>
+
+        <!-- AI AUDIO DENOISE -->
+        <div class="ai-card" data-ai-name="denoise noise hiss hum remove noisereduce audio">
+          <div class="ai-card-title">&#127895; AI Noise Remover <span class="ai-badge" style="background:rgba(5,150,105,.15);border-color:rgba(5,150,105,.3);color:#6ee7b7;">SPECTRAL</span></div>
+          <div class="ai-card-desc">Removes hiss, hum, HVAC, and background noise using AI spectral subtraction. Higher strength = more aggressive cleanup.</div>
+          <div class="stab-row">
+            <span class="stab-label">Strength</span>
+            <input type="range" class="fslider" id="denoiseStrength" min="10" max="100" value="75" oninput="document.getElementById('denoiseStrVal').textContent=Math.round(this.value)+'%'">
+            <span class="stab-val" id="denoiseStrVal">75%</span>
+          </div>
+          <div class="ai-tip">&#9432; Start at 75%. Too high may remove quiet speech details.</div>
+          <button class="ai-btn" id="aiDenoiseBtn" onclick="runAiDenoise()" style="background:linear-gradient(135deg,#064e3b,#059669);">&#127895; Remove Noise</button>
+          <div class="progress-wrap" id="aiDenoiseProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="aiDenoiseProgBar"></div></div>
+            <div class="prog-label" id="aiDenoiseProgLabel">Analyzing noise profile…</div>
+          </div>
+          <div class="ai-result" id="aiDenoiseResult">
+            <div style="display:flex;gap:6px;">
+              <button class="preview-btn" onclick="previewNovelJob('aiDenoise')" style="flex:1;">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('aiDenoise')" style="flex:2;background:linear-gradient(135deg,#064e3b,#059669);">&#11015; Download</button>
+            </div>
+            <button class="use-src-btn" style="width:100%;margin-top:6px;" onclick="useAsSource(_aiJobs.aiDenoise)">&#8635; Continue Editing This</button>
+          </div>
+        </div>
+
+          </div><!-- acc-body speech -->
+        </div><!-- acc-group speech -->
+
+        <!-- GROUP 2: VISION & EFFECTS -->
+        <div class="acc-group ai-acc-group">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <span>&#127775; Vision &amp; Effects <span style="font-size:9px;color:var(--t3);margin-left:5px;font-weight:600;text-transform:none;letter-spacing:0;">5 tools</span></span>
+            <span class="acc-arrow">&#8964;</span>
+          </div>
+          <div class="acc-body closed">
+
         <!-- BACKGROUND REMOVAL -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#127775; Background Removal <span class="ai-badge">REMBG AI</span></div>
-          <div class="ai-card-desc">Remove the video background with AI and replace it with a solid color. Perfect for green screen effects.</div>
-          <div style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Background Color</div>
+        <div class="ai-card" data-ai-name="background removal remove rembg green screen">
+          <div class="ai-card-title">&#127775; Background Removal <span class="ai-badge" style="background:rgba(5,150,105,.2);border-color:rgba(5,150,105,.4);color:#6ee7b7;">REMBG</span></div>
+          <div class="ai-card-desc">Remove the video background with AI. Replace with transparency, green screen, or solid color.</div>
+          <div style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Replace with</div>
           <div class="bg-grid" id="bgSwatches">
             <div class="bg-swatch active" style="background:#000" onclick="setBgColor('black')" title="Black"></div>
             <div class="bg-swatch" style="background:#fff" onclick="setBgColor('white')" title="White"></div>
@@ -2431,125 +2678,77 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
             <div class="bg-swatch" style="background:#0000ff" onclick="setBgColor('blue')" title="Blue Screen"></div>
             <div class="bg-swatch" style="background:#ff0000" onclick="setBgColor('red')" title="Red"></div>
           </div>
-          <div style="font-size:11px;color:var(--t3);margin-bottom:10px;">Processing at 2fps — best for clips under 30 seconds.</div>
-          <button class="ai-btn" id="bgRemoveBtn" onclick="runBgRemove()" style="background:linear-gradient(135deg,#059669,var(--cyan));">&#127775; Remove Background</button>
+          <div class="ai-tip">&#9432; Best for clips under 30s &mdash; processes 2 frames/sec</div>
+          <button class="ai-btn" id="bgRemoveBtn" onclick="runBgRemove()" style="background:linear-gradient(135deg,#059669,#22d3ee);">&#127775; Remove Background</button>
           <div class="progress-wrap" id="bgProgWrap" style="margin-top:10px;">
             <div class="prog-bar-bg"><div class="prog-bar" id="bgProgBar"></div></div>
             <div class="prog-label" id="bgProgLabel">Processing frames with AI...</div>
           </div>
           <div class="ai-result" id="bgResult">
-            <button class="dl-btn" onclick="downloadAiJob('bgRemoveBtn')" id="bgDlBtn" style="background:linear-gradient(135deg,#059669,var(--cyan));">&#11015; Download Video</button>
+            <div style="display:flex;gap:6px;">
+              <button class="preview-btn" onclick="previewAiJob('bgRemoveBtn')" style="flex:1;">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiJob('bgRemoveBtn')" id="bgDlBtn" style="flex:2;background:linear-gradient(135deg,#059669,#22d3ee);">&#11015; Download</button>
+            </div>
+            <button class="use-src-btn" style="width:100%;margin-top:6px;" onclick="useAsSource(_aiJobs.bgRemove)">&#8635; Continue Editing This</button>
           </div>
         </div>
 
         <!-- STABILIZATION -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#127911; Stabilize Video <span class="ai-badge">VIDSTAB</span></div>
-          <div class="ai-card-desc">Remove camera shake and jitter. Two-pass analysis for smooth, professional-looking footage.</div>
-          <div class="stab-row"><span class="stab-label">Shakiness</span><input type="range" class="fslider" id="stabShakiness" min="1" max="10" value="5" oninput="document.getElementById('stabShakVal').textContent=this.value"><span class="stab-val" id="stabShakVal">5</span></div>
-          <div class="stab-row"><span class="stab-label">Smoothing</span><input type="range" class="fslider" id="stabSmoothing" min="5" max="100" value="30" oninput="document.getElementById('stabSmVal').textContent=this.value"><span class="stab-val" id="stabSmVal">30</span></div>
-          <div class="trim-info" style="margin-bottom:10px;">Higher shakiness = more aggressive correction. Higher smoothing = smoother but may crop more.</div>
-          <button class="ai-btn" id="stabilizeBtn" onclick="runStabilize()" style="background:linear-gradient(135deg,var(--amb),#ef4444);">&#127911; Stabilize Video</button>
+        <div class="ai-card" data-ai-name="stabilize shake jitter smooth vidstab">
+          <div class="ai-card-title">&#127911; Video Stabilizer <span class="ai-badge" style="background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.35);color:#fcd34d;">VIDSTAB</span></div>
+          <div class="ai-card-desc">Remove camera shake and jitter with two-pass motion analysis. Produces smooth, broadcast-quality footage.</div>
+          <div class="stab-row">
+            <span class="stab-label">Shakiness</span>
+            <input type="range" class="fslider" id="stabShakiness" min="1" max="10" value="5" oninput="document.getElementById('stabShakVal').textContent=this.value">
+            <span class="stab-val" id="stabShakVal">5</span>
+          </div>
+          <div class="stab-row">
+            <span class="stab-label">Smoothing</span>
+            <input type="range" class="fslider" id="stabSmoothing" min="5" max="100" value="30" oninput="document.getElementById('stabSmVal').textContent=this.value">
+            <span class="stab-val" id="stabSmVal">30</span>
+          </div>
+          <div class="ai-tip">Higher shakiness = more correction. Higher smoothing = wider crop margin.</div>
+          <button class="ai-btn" id="stabilizeBtn" onclick="runStabilize()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">&#127911; Stabilize Video</button>
           <div class="progress-wrap" id="stabProgWrap" style="margin-top:10px;">
             <div class="prog-bar-bg"><div class="prog-bar" id="stabProgBar"></div></div>
             <div class="prog-label" id="stabProgLabel">Analyzing motion...</div>
           </div>
           <div class="ai-result" id="stabResult">
-            <button class="preview-btn" onclick="previewAiJob('stabilizeBtn')">&#9654; Preview</button>
-            <button class="dl-btn" onclick="downloadAiJob('stabilizeBtn')" style="background:linear-gradient(135deg,var(--amb),#ef4444);">&#11015; Download Stabilized</button>
-          </div>
-        </div>
-
-        <!-- FILLER WORD CUTTER -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#9986; Filler Word Cutter <span class="ai-badge">WHISPER AI</span></div>
-          <div class="ai-card-desc">Auto-detect and remove filler words ("um", "uh", "like", "basically") from speech. Review each detection before cutting.</div>
-          <button class="ai-btn" id="fillerDetectBtn" onclick="runDetectFillers()" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">&#128269; Scan for Fillers</button>
-          <div class="progress-wrap" id="fillerProgWrap" style="margin-top:10px;">
-            <div class="prog-bar-bg"><div class="prog-bar" id="fillerProgBar"></div></div>
-            <div class="prog-label" id="fillerProgLabel">Scanning speech with Whisper…</div>
-          </div>
-          <div id="fillerList" style="display:none;margin-top:10px;"></div>
-          <div class="ai-result" id="fillerResult">
-            <button class="dl-btn" onclick="downloadAiResult('filler')" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">&#11015; Download Cleaned Video</button>
-          </div>
-        </div>
-
-        <!-- SILENCE REMOVER -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#128263; Smart Silence Remover <span class="ai-badge">WHISPER AI</span></div>
-          <div class="ai-card-desc">Auto-detect and cut silent gaps. Keeps only segments with speech — perfect for podcasts and talking-head videos.</div>
-          <div class="stab-row"><span class="stab-label">Min Silence</span><input type="range" class="fslider" id="silenceThresh" min="0.5" max="5.0" step="0.5" value="1.0" oninput="document.getElementById('silenceThreshVal').textContent=this.value+'s'"><span class="stab-val" id="silenceThreshVal">1.0s</span></div>
-          <button class="ai-btn" id="silenceBtn" onclick="runSilenceRemover()" style="background:linear-gradient(135deg,#0891b2,#0e7490);">&#128263; Remove Silences</button>
-          <div class="progress-wrap" id="silenceProgWrap" style="margin-top:10px;">
-            <div class="prog-bar-bg"><div class="prog-bar" id="silenceProgBar"></div></div>
-            <div class="prog-label" id="silenceProgLabel">Detecting speech segments…</div>
-          </div>
-          <div class="ai-result" id="silenceResult">
-            <div style="display:flex;gap:8px;">
-              <button class="preview-btn" onclick="previewNovelJob('silence')">&#9654; Preview</button>
-              <button class="dl-btn" onclick="downloadAiResult('silence')" style="background:linear-gradient(135deg,#0891b2,#0e7490);">&#11015; Download</button>
+            <div style="display:flex;gap:6px;">
+              <button class="preview-btn" onclick="previewAiJob('stabilizeBtn')" style="flex:1;">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiJob('stabilizeBtn')" style="flex:2;background:linear-gradient(135deg,#f59e0b,#ef4444);">&#11015; Download</button>
             </div>
+            <button class="use-src-btn" style="width:100%;margin-top:6px;" onclick="useAsSource(_aiJobs.stabilize)">&#8635; Continue Editing This</button>
           </div>
         </div>
 
-        <!-- SPEECH ENHANCER -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#127897; Speech Enhancer <span class="ai-badge">DSP AI</span></div>
-          <div class="ai-card-desc">Boost vocal clarity, reduce background noise, apply EQ and compression for broadcast-quality audio in one click.</div>
-          <button class="ai-btn" id="speechEnhBtn" onclick="runSpeechEnhance()" style="background:linear-gradient(135deg,#b45309,#d97706);">&#127897; Enhance Speech</button>
-          <div class="progress-wrap" id="speechEnhProgWrap" style="margin-top:10px;">
-            <div class="prog-bar-bg"><div class="prog-bar" id="speechEnhProgBar"></div></div>
-            <div class="prog-label" id="speechEnhProgLabel">Enhancing audio…</div>
+        <!-- FACE BLUR -->
+        <div class="ai-card" data-ai-name="face blur privacy anonymize censor opencv">
+          <div class="ai-card-title">&#129333; Face Blur &amp; Anonymizer <span class="ai-badge" style="background:rgba(220,38,38,.15);border-color:rgba(220,38,38,.3);color:#fca5a5;">OPENCV</span></div>
+          <div class="ai-card-desc">Detect and blur every face automatically. Perfect for privacy protection, street footage, or interviews.</div>
+          <div class="stab-row">
+            <span class="stab-label">Intensity</span>
+            <input type="range" class="fslider" id="faceBlurStrength" min="11" max="99" step="2" value="45" oninput="document.getElementById('faceBlurVal').textContent=this.value">
+            <span class="stab-val" id="faceBlurVal">45</span>
           </div>
-          <div class="ai-result" id="speechEnhResult">
-            <div style="display:flex;gap:8px;">
-              <button class="preview-btn" onclick="previewNovelJob('speechEnh')">&#9654; Preview</button>
-              <button class="dl-btn" onclick="downloadAiResult('speechEnh')" style="background:linear-gradient(135deg,#b45309,#d97706);">&#11015; Download Enhanced</button>
+          <button class="ai-btn" id="faceBlurBtn" onclick="runFaceBlur()" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);">&#129333; Blur All Faces</button>
+          <div class="progress-wrap" id="faceBlurProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="faceBlurProgBar"></div></div>
+            <div class="prog-label" id="faceBlurProgLabel">Detecting faces…</div>
+          </div>
+          <div class="ai-result" id="faceBlurResult">
+            <div style="display:flex;gap:6px;">
+              <button class="preview-btn" onclick="previewNovelJob('faceBlur')" style="flex:1;">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('faceBlur')" style="flex:2;background:linear-gradient(135deg,#7f1d1d,#dc2626);">&#11015; Download</button>
             </div>
-          </div>
-        </div>
-
-        <!-- BEAT SYNC DETECTOR -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#127941; Beat Sync Detector <span class="ai-badge">LIBROSA</span></div>
-          <div class="ai-card-desc">Analyze music tempo and detect every beat timestamp. Click any beat chip to jump to that moment in the video.</div>
-          <button class="ai-btn" id="beatBtn" onclick="runDetectBeats()" style="background:linear-gradient(135deg,#dc2626,#9b1b30);">&#127941; Detect Beats</button>
-          <div class="progress-wrap" id="beatProgWrap" style="margin-top:10px;">
-            <div class="prog-bar-bg"><div class="prog-bar" id="beatProgBar"></div></div>
-            <div class="prog-label" id="beatProgLabel">Analyzing audio for beat sync…</div>
-          </div>
-          <div id="beatResultPanel" style="display:none;margin-top:10px;background:rgba(129,140,248,.08);border:1px solid rgba(129,140,248,.2);border-radius:8px;padding:12px;">
-            <div id="beatBpm" style="font-size:26px;font-weight:800;color:var(--p);text-align:center;margin-bottom:4px;">-- BPM</div>
-            <div id="beatInfo" style="font-size:11px;color:var(--t3);text-align:center;margin-bottom:10px;"></div>
-            <div id="beatMarkers" style="display:flex;flex-wrap:wrap;gap:3px;max-height:80px;overflow-y:auto;"></div>
-          </div>
-        </div>
-
-        <!-- AUTO SPEED RAMP -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#9889; Auto Speed Ramp <span class="ai-badge">AI MOTION</span></div>
-          <div class="ai-card-desc">Intelligently slow down calm moments and speed up action sequences based on motion analysis. Creates dynamic, cinematic feel.</div>
-          <div class="stab-row"><span class="stab-label">Slow Factor</span><input type="range" class="fslider" id="rampSlow" min="0.25" max="1.0" step="0.25" value="0.5" oninput="document.getElementById('rampSlowVal').textContent=this.value+'x'"><span class="stab-val" id="rampSlowVal">0.5x</span></div>
-          <div class="stab-row"><span class="stab-label">Fast Factor</span><input type="range" class="fslider" id="rampFast" min="1.5" max="5.0" step="0.5" value="3.0" oninput="document.getElementById('rampFastVal').textContent=this.value+'x'"><span class="stab-val" id="rampFastVal">3.0x</span></div>
-          <div class="stab-row"><span class="stab-label">Window</span><input type="range" class="fslider" id="rampWindow" min="1" max="5" step="0.5" value="2" oninput="document.getElementById('rampWindowVal').textContent=this.value+'s'"><span class="stab-val" id="rampWindowVal">2s</span></div>
-          <button class="ai-btn" id="rampBtn" onclick="runSpeedRamp()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">&#9889; Apply Speed Ramp</button>
-          <div class="progress-wrap" id="rampProgWrap" style="margin-top:10px;">
-            <div class="prog-bar-bg"><div class="prog-bar" id="rampProgBar"></div></div>
-            <div class="prog-label" id="rampProgLabel">Analyzing motion…</div>
-          </div>
-          <div class="ai-result" id="rampResult">
-            <div style="display:flex;gap:8px;">
-              <button class="preview-btn" onclick="previewNovelJob('ramp')">&#9654; Preview</button>
-              <button class="dl-btn" onclick="downloadAiResult('ramp')" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">&#11015; Download Ramped</button>
-            </div>
+            <button class="use-src-btn" style="width:100%;margin-top:6px;" onclick="useAsSource(_aiJobs.faceBlur)">&#8635; Continue Editing This</button>
           </div>
         </div>
 
         <!-- SMART THUMBNAIL -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#128444; Smart Thumbnail <span class="ai-badge">YOLO + VISION</span></div>
-          <div class="ai-card-desc">AI picks the most compelling frame using sharpness, composition, face detection and rule-of-thirds scoring.</div>
+        <div class="ai-card" data-ai-name="thumbnail frame best yolo vision">
+          <div class="ai-card-title">&#128444; Smart Thumbnail <span class="ai-badge" style="background:rgba(5,150,105,.15);border-color:rgba(5,150,105,.3);color:#6ee7b7;">YOLO+CV</span></div>
+          <div class="ai-card-desc">AI scores every frame for sharpness, composition, and face detection to pick the most compelling thumbnail.</div>
           <button class="ai-btn" id="thumbBtn" onclick="runSmartThumbnail()" style="background:linear-gradient(135deg,#059669,#065f46);">&#128444; Generate Thumbnail</button>
           <div class="progress-wrap" id="thumbProgWrap" style="margin-top:10px;">
             <div class="prog-bar-bg"><div class="prog-bar" id="thumbProgBar"></div></div>
@@ -2561,28 +2760,59 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           </div>
         </div>
 
-        <!-- FACE BLUR -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#129333; Face Blur &amp; Anonymizer <span class="ai-badge">OPENCV</span></div>
-          <div class="ai-card-desc">Automatically detect and blur every face in the video. Perfect for privacy protection, street footage, or interviews.</div>
-          <div class="stab-row"><span class="stab-label">Blur Strength</span><input type="range" class="fslider" id="faceBlurStrength" min="11" max="99" step="2" value="45" oninput="document.getElementById('faceBlurVal').textContent=this.value"><span class="stab-val" id="faceBlurVal">45</span></div>
-          <button class="ai-btn" id="faceBlurBtn" onclick="runFaceBlur()" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);">&#129333; Blur All Faces</button>
-          <div class="progress-wrap" id="faceBlurProgWrap" style="margin-top:10px;">
-            <div class="prog-bar-bg"><div class="prog-bar" id="faceBlurProgBar"></div></div>
-            <div class="prog-label" id="faceBlurProgLabel">Detecting faces…</div>
+        <!-- AUTO SPEED RAMP -->
+        <div class="ai-card" data-ai-name="speed ramp slow motion fast cinematic motion">
+          <div class="ai-card-title">&#9889; Auto Speed Ramp <span class="ai-badge" style="background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.35);color:#fcd34d;">MOTION AI</span></div>
+          <div class="ai-card-desc">Slow down calm moments, speed up action — automatically. Uses frame-difference analysis for a cinematic effect.</div>
+          <div class="stab-row"><span class="stab-label">Slow ×</span><input type="range" class="fslider" id="rampSlow" min="0.25" max="1.0" step="0.25" value="0.5" oninput="document.getElementById('rampSlowVal').textContent=this.value+'×'"><span class="stab-val" id="rampSlowVal">0.5×</span></div>
+          <div class="stab-row"><span class="stab-label">Fast ×</span><input type="range" class="fslider" id="rampFast" min="1.5" max="5.0" step="0.5" value="3.0" oninput="document.getElementById('rampFastVal').textContent=this.value+'×'"><span class="stab-val" id="rampFastVal">3.0×</span></div>
+          <div class="stab-row"><span class="stab-label">Window</span><input type="range" class="fslider" id="rampWindow" min="1" max="5" step="0.5" value="2" oninput="document.getElementById('rampWindowVal').textContent=this.value+'s'"><span class="stab-val" id="rampWindowVal">2s</span></div>
+          <button class="ai-btn" id="rampBtn" onclick="runSpeedRamp()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">&#9889; Apply Speed Ramp</button>
+          <div class="progress-wrap" id="rampProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="rampProgBar"></div></div>
+            <div class="prog-label" id="rampProgLabel">Analyzing motion…</div>
           </div>
-          <div class="ai-result" id="faceBlurResult">
-            <div style="display:flex;gap:8px;">
-              <button class="preview-btn" onclick="previewNovelJob('faceBlur')">&#9654; Preview</button>
-              <button class="dl-btn" onclick="downloadAiResult('faceBlur')" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);">&#11015; Download</button>
+          <div class="ai-result" id="rampResult">
+            <div style="display:flex;gap:6px;">
+              <button class="preview-btn" onclick="previewNovelJob('ramp')" style="flex:1;">&#9654; Preview</button>
+              <button class="dl-btn" onclick="downloadAiResult('ramp')" style="flex:2;background:linear-gradient(135deg,#f59e0b,#ef4444);">&#11015; Download</button>
             </div>
+            <button class="use-src-btn" style="width:100%;margin-top:6px;" onclick="useAsSource(_aiJobs.ramp)">&#8635; Continue Editing This</button>
+          </div>
+        </div>
+
+          </div><!-- acc-body vision -->
+        </div><!-- acc-group vision -->
+
+        <!-- GROUP 3: CREATIVE & DATA -->
+        <div class="acc-group ai-acc-group">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <span>&#127917; Creative &amp; Data <span style="font-size:9px;color:var(--t3);margin-left:5px;font-weight:600;text-transform:none;letter-spacing:0;">3 tools</span></span>
+            <span class="acc-arrow">&#8964;</span>
+          </div>
+          <div class="acc-body closed">
+
+        <!-- BEAT SYNC DETECTOR -->
+        <div class="ai-card" data-ai-name="beat sync bpm tempo music rhythm librosa">
+          <div class="ai-card-title">&#127941; Beat Sync Detector <span class="ai-badge" style="background:rgba(220,38,38,.15);border-color:rgba(220,38,38,.3);color:#fca5a5;">LIBROSA</span></div>
+          <div class="ai-card-desc">Analyzes music tempo and marks every beat. Click a timestamp chip below to jump to that beat in your video &mdash; then use Timeline to cut there.</div>
+          <button class="ai-btn" id="beatBtn" onclick="runDetectBeats()" style="background:linear-gradient(135deg,#dc2626,#9b1b30);">&#127941; Detect Beats</button>
+          <div class="progress-wrap" id="beatProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="beatProgBar"></div></div>
+            <div class="prog-label" id="beatProgLabel">Analyzing audio for beat sync…</div>
+          </div>
+          <div id="beatResultPanel" style="display:none;margin-top:10px;background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.18);border-radius:10px;padding:12px;">
+            <div id="beatBpm" style="font-size:28px;font-weight:900;color:var(--p);text-align:center;margin-bottom:2px;letter-spacing:-1px;">-- BPM</div>
+            <div id="beatInfo" style="font-size:11px;color:var(--t3);text-align:center;margin-bottom:10px;"></div>
+            <div style="font-size:9px;color:var(--t3);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Click any chip to jump to that beat</div>
+            <div id="beatMarkers" style="display:flex;flex-wrap:wrap;gap:3px;max-height:90px;overflow-y:auto;"></div>
           </div>
         </div>
 
         <!-- SCENE DETECTOR -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#127917; Auto Scene Detector <span class="ai-badge">SCENEDETECT</span></div>
-          <div class="ai-card-desc">Find every scene cut in your video. Get timestamps for each scene — great for finding natural cut points.</div>
+        <div class="ai-card" data-ai-name="scene cut detect chapters scenedetect">
+          <div class="ai-card-title">&#127917; Auto Scene Detector <span class="ai-badge" style="background:rgba(37,99,235,.15);border-color:rgba(37,99,235,.3);color:#93c5fd;">SCENEDETECT</span></div>
+          <div class="ai-card-desc">Finds every visual cut in your video. Click a scene row to jump directly to that moment and set a precise trim point.</div>
           <button class="ai-btn" id="sceneBtn" onclick="runSceneDetect()" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);">&#127917; Detect Scenes</button>
           <div class="progress-wrap" id="sceneProgWrap" style="margin-top:10px;">
             <div class="prog-bar-bg"><div class="prog-bar" id="sceneProgBar"></div></div>
@@ -2594,38 +2824,30 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           </div>
         </div>
 
-        <!-- AI AUDIO DENOISE -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#127895; AI Audio Denoiser <span class="ai-badge">NOISEREDUCE</span></div>
-          <div class="ai-card-desc">Remove hiss, hum, fan noise, and background noise from your video audio using AI spectral subtraction.</div>
-          <div class="stab-row"><span class="stab-label">Strength</span><input type="range" class="fslider" id="denoiseStrength" min="10" max="100" value="75" oninput="document.getElementById('denoiseStrVal').textContent=Math.round(this.value)+'%'"><span class="stab-val" id="denoiseStrVal">75%</span></div>
-          <button class="ai-btn" id="aiDenoiseBtn" onclick="runAiDenoise()" style="background:linear-gradient(135deg,#064e3b,#059669);">&#127895; Remove Noise</button>
-          <div class="progress-wrap" id="aiDenoiseProgWrap" style="margin-top:10px;">
-            <div class="prog-bar-bg"><div class="prog-bar" id="aiDenoiseProgBar"></div></div>
-            <div class="prog-label" id="aiDenoiseProgLabel">Analyzing noise profile…</div>
-          </div>
-          <div class="ai-result" id="aiDenoiseResult">
-            <div style="display:flex;gap:8px;">
-              <button class="preview-btn" onclick="previewNovelJob('aiDenoise')">&#9654; Preview</button>
-              <button class="dl-btn" onclick="downloadAiResult('aiDenoise')" style="background:linear-gradient(135deg,#064e3b,#059669);">&#11015; Download Clean Audio</button>
-            </div>
-          </div>
-        </div>
-
         <!-- IN-VIDEO OCR -->
-        <div class="ai-card">
-          <div class="ai-card-title">&#128292; In-Video OCR <span class="ai-badge">EASYOCR</span></div>
-          <div class="ai-card-desc">Extract and index all text visible in your video frames. Search through on-screen text with jump-to-timestamp links.</div>
+        <div class="ai-card" data-ai-name="ocr text read extract easyocr">
+          <div class="ai-card-title">&#128292; In-Video OCR <span class="ai-badge" style="background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.3);color:#a5b4fc;">EASYOCR</span></div>
+          <div class="ai-card-desc">Extract and search all on-screen text across every frame. Click any result to jump to that moment in the video.</div>
           <button class="ai-btn" id="ocrBtn" onclick="runVideoOcr()" style="background:linear-gradient(135deg,#6366f1,#4338ca);">&#128292; Scan for Text</button>
           <div class="progress-wrap" id="ocrProgWrap" style="margin-top:10px;">
             <div class="prog-bar-bg"><div class="prog-bar" id="ocrProgBar"></div></div>
             <div class="prog-label" id="ocrProgLabel">Scanning video frames for text…</div>
           </div>
           <div class="ai-result" id="ocrResult">
-            <input type="text" id="ocrSearch" placeholder="Search text in video…" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:7px 10px;color:var(--t1);font-size:12px;margin-bottom:8px;outline:none;" oninput="filterOcrResults()">
-            <div id="ocrEntries" style="max-height:180px;overflow-y:auto;border-radius:6px;background:rgba(255,255,255,.03);"></div>
+            <input type="text" id="ocrSearch" placeholder="Search text in video…" class="ocr-search-input" oninput="filterOcrResults()">
+            <div id="ocrEntries" style="max-height:180px;overflow-y:auto;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);"></div>
             <div id="ocrCount" style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px;"></div>
           </div>
+        </div>
+
+          </div><!-- acc-body creative -->
+        </div><!-- acc-group creative -->
+
+        <!-- NO RESULTS STATE -->
+        <div id="aiNoResults" style="display:none;text-align:center;padding:28px 16px;color:var(--t3);font-size:12px;">
+          <div style="font-size:28px;margin-bottom:8px;">&#128269;</div>
+          No AI tools match your search.<br>
+          <span style="color:var(--p);cursor:pointer;" onclick="document.getElementById('aiSearch').value='';filterAiCards('')">Clear search</span>
         </div>
 
       </div>
@@ -2883,7 +3105,122 @@ function _estimateLabel(op) {
   return ' · ~' + Math.round(secs / 60) + 'm';
 }
 
-// ── SERVER CONNECTION CHECK ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// AI SEARCH
+// ══════════════════════════════════════════════════════════════════
+function filterAiCards(q) {
+  q = (q || '').toLowerCase().trim();
+  const cards = document.querySelectorAll('.ai-card[data-ai-name]');
+  const groups = document.querySelectorAll('.ai-acc-group');
+  let totalVisible = 0;
+
+  if (!q) {
+    cards.forEach(c => { c.style.display = ''; });
+    groups.forEach(g => { g.style.display = ''; });
+    document.getElementById('aiNoResults').style.display = 'none';
+    document.getElementById('aiCardCount').textContent = '';
+    return;
+  }
+
+  // Ensure all accordion bodies open during search
+  document.querySelectorAll('.ai-acc-group .acc-body').forEach(b => {
+    b.classList.remove('closed'); b.classList.add('open');
+  });
+  document.querySelectorAll('.ai-acc-group .acc-header').forEach(h => h.classList.remove('closed'));
+
+  let visible = 0;
+  cards.forEach(c => {
+    const name = c.dataset.aiName || '';
+    const show = name.includes(q);
+    c.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  // Hide empty groups
+  groups.forEach(g => {
+    const anyVisible = [...g.querySelectorAll('.ai-card[data-ai-name]')].some(c => c.style.display !== 'none');
+    g.style.display = anyVisible ? '' : 'none';
+  });
+
+  document.getElementById('aiNoResults').style.display = visible ? 'none' : '';
+  document.getElementById('aiCardCount').textContent = visible ? visible + ' tools' : '';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// GRAB CURRENT TIME
+// ══════════════════════════════════════════════════════════════════
+function grabTime(inputId) {
+  const v = document.getElementById('vid');
+  if (!v || !v.duration) { toast('Play the video first to grab the current time', 'inf'); return; }
+  const t = Math.round(v.currentTime * 10) / 10;
+  const el = document.getElementById(inputId);
+  if (el) { el.value = t; toast('Grabbed ' + t + 's from playhead', 'ok'); }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MUTE MARKERS ON TIMELINE
+// ══════════════════════════════════════════════════════════════════
+function renderMuteMarkers() {
+  const track = document.querySelector('.tl-track');
+  if (!track || !duration) return;
+  document.querySelectorAll('.tl-mute-seg').forEach(el => el.remove());
+  audioSegments.forEach(seg => {
+    const div = document.createElement('div');
+    div.className = 'tl-mute-seg';
+    const s = (seg.start / duration) * 100;
+    const w = ((seg.end - seg.start) / duration) * 100;
+    div.style.left = s + '%';
+    div.style.width = w + '%';
+    div.title = fmtSeg(seg.start) + ' → ' + fmtSeg(seg.end);
+    track.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BETTER ERROR MESSAGES
+// ══════════════════════════════════════════════════════════════════
+function _friendlyError(raw) {
+  if (!raw) return 'Unknown error occurred.';
+  const r = raw.toLowerCase();
+  if (r.includes('moov atom') || r.includes('invalid data')) return 'Video file appears corrupted. Try re-exporting from your camera or editor.';
+  if (r.includes('no audio stream') || r.includes('no audio')) return 'This video has no audio track. Audio features require a video with sound.';
+  if (r.includes('codec not found') || r.includes('libx264')) return 'Video encoding failed. Make sure FFmpeg is installed correctly.';
+  if (r.includes('no space') || r.includes('disk')) return 'Disk is full. Free up space and try again.';
+  if (r.includes('timeout') || r.includes('timed out')) return 'Processing timed out. Try a shorter clip or a simpler operation.';
+  if (r.includes('permission') || r.includes('access')) return 'File permission error. Try running the server as administrator.';
+  if (r.includes('memory') || r.includes('oom')) return 'Not enough memory. Try a shorter or lower-resolution video.';
+  if (r.includes('model') || r.includes('yolo') || r.includes('ultralytics')) return 'AI model failed to load. Restart the server and try again.';
+  // Truncate technical errors
+  return raw.slice(0, 120) + (raw.length > 120 ? '…' : '');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODEL LOADING STATE DETECTION
+// ══════════════════════════════════════════════════════════════════
+function _watchModelLoad(barId, lblId, wrapId) {
+  let zeroCount = 0;
+  const iv = setInterval(() => {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap || !wrap.classList.contains('on')) { clearInterval(iv); return; }
+    const bar = document.getElementById(barId);
+    if (!bar) { clearInterval(iv); return; }
+    const pct = parseFloat(bar.style.width) || 0;
+    if (pct < 5) {
+      zeroCount++;
+      if (zeroCount >= 3) { // 6s at 0% → show model loading hint
+        const lbl = document.getElementById(lblId);
+        if (lbl && !lbl.textContent.includes('Loading')) {
+          lbl.textContent = '⏳ Loading AI model (first run takes ~30s)…';
+        }
+      }
+    } else {
+      clearInterval(iv);
+    }
+  }, 2000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SERVER CONNECTION CHECK ─────────────────────────────────────────
 async function checkServer() {
   try {
     const r = await fetch(API + '/health', { signal: AbortSignal.timeout(4000) });
@@ -2930,7 +3267,8 @@ function toast(msg, type) {
   t.innerHTML = `<span style="opacity:.7;margin-right:7px;font-size:12px;">${icon}</span>${msg}`;
   t.className = 'toast show ' + (type || 'inf');
   clearTimeout(t._tid);
-  t._tid = setTimeout(() => t.className = 'toast', 3400);
+  const dur = type === 'err' ? 6000 : 3400;
+  t._tid = setTimeout(() => t.className = 'toast', dur);
 }
 
 function toggleFullscreen() {
@@ -3659,7 +3997,8 @@ function renderSegList() {
   document.getElementById('muteProgWrap').classList.remove('on');
   const btn = document.getElementById('muteBtn');
   btn.disabled = false; btn.classList.remove('running');
-  btn.textContent = '🎵 Remove Audio Segments';
+  btn.textContent = '🎵 Mute These Segments';
+  renderMuteMarkers();
 }
 
 function fmtSeg(s) {
@@ -3749,8 +4088,8 @@ function pollGenericJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
         clearInterval(timer); _activePollers.delete(barId);
         document.getElementById(wrapId)?.classList.remove('on');
         if (btn?.disabled !== undefined) { btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel; }
-        const detail = d.error ? d.error.slice(0, 120) : 'Unknown error';
-        toast('Processing failed: ' + detail, 'err');
+        const friendly = _friendlyError(d.error);
+        toast(friendly, 'err');
       }
     } catch (_) {
       errStreak++;
@@ -4165,6 +4504,7 @@ function _startAiJob(btnId, progWrapId, progBarId, progLabelId, resultId, url, b
   document.getElementById(resultId).classList.remove('on');
   document.getElementById(progBarId).style.width = '0%';
   document.getElementById(progLabelId).textContent = 'Starting AI processing…';
+  _watchModelLoad(progBarId, progLabelId, progWrapId);
 
   fetch(API + url, {
     method: 'POST',
