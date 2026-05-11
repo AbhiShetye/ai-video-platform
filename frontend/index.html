@@ -1847,6 +1847,25 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
 /* ── SCROLLABLE PANEL FADE ───────────────────────────────────────────── */
 .panel-body,.tools-body{scroll-behavior:smooth;}
 
+/* ── EXPIRY CHIP ─────────────────────────────────────────────────────── */
+.tb-expiry{
+  display:none;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:20px;
+  background:rgba(251,191,36,.08);
+  border:1px solid rgba(251,191,36,.2);
+  font-size:10px;font-weight:700;color:rgba(251,191,36,.8);
+  letter-spacing:.3px;cursor:default;
+  transition:all .3s;
+}
+.tb-expiry.show{display:flex;}
+.tb-expiry.urgent{
+  background:rgba(248,113,113,.1);
+  border-color:rgba(248,113,113,.3);
+  color:var(--red);
+  animation:pulse-urgent 2s ease-in-out infinite;
+}
+@keyframes pulse-urgent{0%,100%{opacity:1;}50%{opacity:.6;}}
+
 /* ── PROC/ERASE BTN GLOW ON HOVER ───────────────────────────────────── */
 .proc-btn:hover{box-shadow:0 10px 40px rgba(139,92,246,.65),0 0 0 1px rgba(139,92,246,.3),inset 0 1px 0 rgba(255,255,255,.2)!important;}
 .erase-btn:hover{box-shadow:0 10px 40px rgba(239,68,68,.55),inset 0 1px 0 rgba(255,255,255,.2)!important;}
@@ -2049,6 +2068,10 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
       <span style="font-size:12px;">&#127916;</span>
       <span class="tb-file-name" id="tbFileName"></span>
       <span class="tb-file-dur" id="tbFileDur"></span>
+    </div>
+    <div class="tb-expiry" id="tbExpiry" title="Your file will be automatically deleted after 24 hours of inactivity">
+      <span style="font-size:10px;">&#9203;</span>
+      <span id="tbExpiryLabel">Expires in --h</span>
     </div>
     <div class="kb-hint" id="kbHint">Space&nbsp;Play&nbsp;&#183;&nbsp;&#8592;&#8594;&nbsp;Seek&nbsp;&#183;&nbsp;1-6&nbsp;Tabs&nbsp;&#183;&nbsp;R&nbsp;Scan</div>
     <button class="tb-new-btn" onclick="reset()" title="Start with a new video">&#10010; New Video</button>
@@ -3003,6 +3026,44 @@ let _serverOnline = false;
 const COLORS = ['#818cf8','#38bdf8','#34d399','#fbbf24','#fb923c','#f87171'];
 
 // ══════════════════════════════════════════════════════════════════════
+// AUTO-EXPIRY COUNTDOWN — files auto-deleted after 24h of inactivity
+// ══════════════════════════════════════════════════════════════════════
+let _expiryTimer = null;
+
+async function startExpiryCountdown(filename) {
+  clearInterval(_expiryTimer);
+  const chip = document.getElementById('tbExpiry');
+  const lbl  = document.getElementById('tbExpiryLabel');
+  if (!chip || !lbl) return;
+
+  async function refresh() {
+    try {
+      const r = await fetch(API + '/storage-stats');
+      const d = await r.json();
+      const f = (d.files || []).find(x => x.name === filename);
+      if (!f) return;
+      const hrs = f.expires_in_hr;
+      chip.classList.add('show');
+      chip.classList.toggle('urgent', hrs < 2);
+      if (hrs < 1) {
+        lbl.textContent = 'Expires in ' + Math.round(f.expires_in_sec / 60) + 'm';
+      } else {
+        lbl.textContent = 'Auto-deletes in ' + hrs.toFixed(1) + 'h';
+      }
+    } catch (_) {}
+  }
+
+  await refresh();
+  _expiryTimer = setInterval(refresh, 60000); // refresh every minute
+}
+
+function stopExpiryCountdown() {
+  clearInterval(_expiryTimer);
+  const chip = document.getElementById('tbExpiry');
+  if (chip) chip.classList.remove('show', 'urgent');
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // ONBOARDING
 // ══════════════════════════════════════════════════════════════════════
 function closeOnboarding() {
@@ -3344,6 +3405,7 @@ function uploadFile(file) {
       showVideo(file);
       toast('Uploaded! Scanning for objects…', 'ok');
       setStep(2);
+      startExpiryCountdown(d.filename);
       await runDetect();
     } catch (err) {
       document.getElementById('dropZone').style.display = '';
@@ -3791,6 +3853,7 @@ function reset() {
   // Cancel all active pollers
   _activePollers.forEach(t => clearInterval(t));
   _activePollers.clear();
+  stopExpiryCountdown();
   // Reset all tool/AI/visual state variables
   Object.keys(toolJobs).forEach(k => toolJobs[k] = null);
   if (typeof _aiJobs !== 'undefined') Object.keys(_aiJobs).forEach(k => _aiJobs[k] = null);

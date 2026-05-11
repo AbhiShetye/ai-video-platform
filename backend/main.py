@@ -70,6 +70,59 @@ async def _warmup():
     from pipeline.engine import _jobs_lock
     threading.Thread(target=_cleanup_jobs, daemon=True, name="job-cleanup").start()
 
+    def _cleanup_files():
+        """
+        Auto-delete uploaded videos and processed outputs older than 24 hours.
+        Runs every hour. Uses file mtime so active/recently-edited files are kept.
+        """
+        import shutil, logging
+        _log = logging.getLogger("cleanup")
+        while True:
+            _time.sleep(3600)   # check every hour
+            cutoff = _time.time() - 86400  # 24 hours ago
+            deleted_files = 0
+            deleted_jobs  = 0
+
+            # ── uploads directory ─────────────────────────────────────
+            for fname in os.listdir(UPLOAD_DIR):
+                fpath = os.path.join(UPLOAD_DIR, fname)
+                try:
+                    if os.path.isfile(fpath) and os.path.getmtime(fpath) < cutoff:
+                        os.remove(fpath)
+                        deleted_files += 1
+                except Exception:
+                    pass
+
+            # ── img_uploads directory ──────────────────────────────────
+            from pipeline.image_tools import IMG_UPLOAD_DIR
+            if os.path.isdir(IMG_UPLOAD_DIR):
+                for fname in os.listdir(IMG_UPLOAD_DIR):
+                    fpath = os.path.join(IMG_UPLOAD_DIR, fname)
+                    try:
+                        if os.path.isfile(fpath) and os.path.getmtime(fpath) < cutoff:
+                            os.remove(fpath)
+                            deleted_files += 1
+                    except Exception:
+                        pass
+
+            # ── storage directory (job outputs) ───────────────────────
+            from pipeline.engine import _STORAGE
+            if os.path.isdir(_STORAGE):
+                for job_dir in os.listdir(_STORAGE):
+                    job_path = os.path.join(_STORAGE, job_dir)
+                    try:
+                        if os.path.isdir(job_path) and os.path.getmtime(job_path) < cutoff:
+                            shutil.rmtree(job_path, ignore_errors=True)
+                            deleted_jobs += 1
+                    except Exception:
+                        pass
+
+            if deleted_files or deleted_jobs:
+                _log.info("Auto-cleanup: deleted %d upload file(s), %d job dir(s)",
+                          deleted_files, deleted_jobs)
+
+    threading.Thread(target=_cleanup_files, daemon=True, name="file-cleanup").start()
+
 
 @app.get("/health")
 def health():
@@ -78,6 +131,45 @@ def health():
         "status": "ok",
         "models": _model_status,
         "jobs": len(jobs),
+    }
+
+
+@app.get("/storage-stats")
+def storage_stats():
+    """Return per-file expiry info and total disk usage for the cleanup banner."""
+    import shutil as _shutil
+    now = _time.time()
+    TTL = 86400  # 24 hours
+
+    files = []
+    for fname in os.listdir(UPLOAD_DIR):
+        fpath = os.path.join(UPLOAD_DIR, fname)
+        if not os.path.isfile(fpath):
+            continue
+        mtime = os.path.getmtime(fpath)
+        expires_in = max(0, int(TTL - (now - mtime)))
+        files.append({
+            "name": fname,
+            "size_mb": round(os.path.getsize(fpath) / 1048576, 1),
+            "expires_in_sec": expires_in,
+            "expires_in_hr": round(expires_in / 3600, 1),
+        })
+
+    # Total storage used (uploads + job outputs)
+    from pipeline.engine import _STORAGE
+    total_bytes = sum(
+        os.path.getsize(os.path.join(dp, f))
+        for dp, _, filenames in os.walk(UPLOAD_DIR)
+        for f in filenames
+    ) + sum(
+        os.path.getsize(os.path.join(dp, f))
+        for dp, _, filenames in os.walk(_STORAGE)
+        for f in filenames
+    )
+    return {
+        "files": sorted(files, key=lambda x: x["expires_in_sec"]),
+        "total_mb": round(total_bytes / 1048576, 1),
+        "ttl_hours": 24,
     }
 
 
