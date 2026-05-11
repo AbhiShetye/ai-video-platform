@@ -21,13 +21,29 @@ log = logging.getLogger(__name__)
 
 # ─── shared helpers ───────────────────────────────────────────────────────────
 
-def _extract_audio_wav(video_path: str, out_dir: str) -> str:
-    """Extract 16kHz mono WAV suitable for Whisper."""
+def _has_audio_stream(video_path: str) -> bool:
+    """Return True if the video contains at least one audio stream."""
+    try:
+        r = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "a",
+             "-show_entries", "stream=codec_type",
+             "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+            capture_output=True, text=True, timeout=10
+        )
+        return "audio" in r.stdout
+    except Exception:
+        return False
+
+
+def _extract_audio_wav(video_path: str, out_dir: str, sample_rate: int = 16000) -> str:
+    """Extract mono WAV suitable for Whisper. Raises RuntimeError if no audio stream."""
+    if not _has_audio_stream(video_path):
+        raise RuntimeError("This video has no audio stream — audio features require a video with sound.")
     audio = os.path.join(out_dir, "audio.wav")
     subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
          "-i", video_path, "-vn", "-acodec", "pcm_s16le",
-         "-ar", "16000", "-ac", "1", audio],
+         "-ar", str(sample_rate), "-ac", "1", audio],
         check=True
     )
     return audio
@@ -307,18 +323,21 @@ def detect_beats(video_path: str) -> dict:
     audio = _extract_audio_wav(video_path, tmp)
 
     y, sr = librosa.load(audio, sr=22050, mono=True)
-    onset_env     = librosa.onset.onset_strength(y=y, sr=sr, aggregate=np.median)
-    tempo, beats  = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
-    beat_times    = librosa.frames_to_time(beats, sr=sr).tolist()
-    downbeat_times = beat_times[::4]          # every 4 beats = downbeats
-    half_times     = beat_times[::2]          # half-notes
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr, aggregate=np.median)
+    tempo, beats = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
 
-    log.info("detect_beats: %.1f BPM, %d beats", float(tempo), len(beat_times))
+    # tempo may be a numpy array with one element — always extract scalar
+    bpm_val = float(np.atleast_1d(tempo)[0])
+    beat_times     = [round(float(t), 3) for t in librosa.frames_to_time(beats, sr=sr)]
+    downbeat_times = beat_times[::4]
+    half_times     = beat_times[::2]
+
+    log.info("detect_beats: %.1f BPM, %d beats", bpm_val, len(beat_times))
     return {
-        "bpm":        round(float(tempo), 1),
-        "beats":      [round(t, 3) for t in beat_times],
-        "downbeats":  [round(t, 3) for t in downbeat_times],
-        "half_beats": [round(t, 3) for t in half_times],
+        "bpm":        round(bpm_val, 1),
+        "beats":      beat_times,
+        "downbeats":  downbeat_times,
+        "half_beats": half_times,
     }
 
 
@@ -681,14 +700,18 @@ def run_face_blur(video_path: str, blur_strength: int = 45, job_id: str = None):
 
 # ── SCENE DETECTION ───────────────────────────────────────────────────────────
 
-def detect_scenes(video_path: str, threshold: float = 27.0) -> dict:
+def detect_scenes(video_path: str, threshold: float = 20.0) -> dict:
     """
     Detect scene changes using PySceneDetect ContentDetector.
     Returns list of {scene, start, end, duration} dicts.
+    Tries progressively lower thresholds if no scenes found.
     """
     try:
         from scenedetect import detect, ContentDetector
-        scenes = detect(video_path, ContentDetector(threshold=threshold))
+        for thr in [threshold, 15.0, 10.0]:
+            scenes = detect(video_path, ContentDetector(threshold=thr))
+            if scenes:
+                break
         result = []
         for i, (start, end) in enumerate(scenes):
             result.append({
@@ -724,27 +747,22 @@ def run_ai_denoise(video_path: str, strength: float = 0.75, job_id: str = None):
         os.makedirs(out_dir, exist_ok=True)
         tmp_dir = tempfile.mkdtemp(prefix="frameai_dnoise_")
 
-        # Extract audio as WAV
+        # Extract audio as WAV (raises if no audio stream)
         jobs[job_id]["progress"] = 10
-        wav_path = os.path.join(tmp_dir, "audio.wav")
-        subprocess.run([
-            "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-            "-i", video_path, "-vn",
-            "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "1",
-            wav_path
-        ], check=True)
+        wav_path = _extract_audio_wav(video_path, tmp_dir, sample_rate=44100)
 
         # Load + denoise
         jobs[job_id]["progress"] = 25
         data, rate = sf.read(wav_path)
         jobs[job_id]["progress"] = 35
-        # Use first 0.5s as noise profile if available
-        noise_sample = data[:int(rate * 0.5)] if len(data) > rate * 0.5 else data[:1000]
+        # Use last 1s as noise profile (safer than first 0.5s which may be speech)
+        noise_len = int(rate * 1.0)
+        noise_sample = data[-noise_len:] if len(data) > noise_len else data
         denoised = nr.reduce_noise(
             y=data, sr=rate,
             y_noise=noise_sample,
             prop_decrease=float(strength),
-            stationary=False,
+            stationary=True,
         )
         jobs[job_id]["progress"] = 70
         clean_wav = os.path.join(tmp_dir, "clean.wav")

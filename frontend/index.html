@@ -300,8 +300,8 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
 .ai-dl-row .dl-btn{flex:1;margin-bottom:0;}
 
 /* ── LAYOUT FIXES ────────────────────────────────────────────────── */
-/* Tools and AI tabs need explicit flex so inner tools-body can scroll */
-#content-tools,#content-ai{display:flex;flex-direction:column;}
+/* Tools, AI, and Photo tabs need flex so inner tools-body can scroll */
+#content-tools,#content-ai,#content-photo{display:flex;flex-direction:column;}
 
 /* ── TAB CONTENT FADE TRANSITION ─────────────────────────────────── */
 #content-remove,#content-eraser,#content-audio,#content-tools,#content-ai{
@@ -1662,7 +1662,7 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
             <button onclick="resetPhoto()" style="float:right;background:none;border:none;color:var(--t3);cursor:pointer;font-size:11px;padding:0;" title="Clear">&#10006; Clear</button>
           </div>
           <!-- Inline preview -->
-          <div id="imgPreviewWrap" style="display:none;margin-top:10px;border-radius:10px;overflow:hidden;background:#000;max-height:200px;display:none;align-items:center;justify-content:center;">
+          <div id="imgPreviewWrap" style="display:none;margin-top:10px;border-radius:10px;overflow:hidden;background:#000;max-height:200px;align-items:center;justify-content:center;">
             <img id="imgPreview" src="" alt="preview" style="max-width:100%;max-height:200px;object-fit:contain;">
           </div>
         </div>
@@ -2330,12 +2330,23 @@ function reset() {
   if (fillerList) { fillerList.style.display = 'none'; fillerList.innerHTML = ''; }
   const beatPanel = document.getElementById('beatResultPanel');
   if (beatPanel) beatPanel.style.display = 'none';
+  const scenePanel = document.getElementById('sceneResultPanel');
+  if (scenePanel) scenePanel.style.display = 'none';
   const ocrEntries = document.getElementById('ocrEntries');
   if (ocrEntries) ocrEntries.innerHTML = '';
   const ocrCount = document.getElementById('ocrCount');
   if (ocrCount) ocrCount.textContent = '';
   const thumbImg = document.getElementById('thumbPreview');
   if (thumbImg) { thumbImg.src = ''; thumbImg.style.display = 'none'; }
+  // New AI video feature buttons
+  ['faceBlurBtn','sceneBtn','aiDenoiseBtn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.disabled = false; b.classList.remove('running'); }
+  });
+  ['faceBlurProgWrap','sceneProgWrap','aiDenoiseProgWrap'].forEach(id =>
+    document.getElementById(id)?.classList.remove('on'));
+  ['faceBlurResult','aiDenoiseResult'].forEach(id =>
+    document.getElementById(id)?.classList.remove('on'));
   // Cancel all active pollers
   _activePollers.forEach(t => clearInterval(t));
   _activePollers.clear();
@@ -2887,10 +2898,31 @@ function takeScreenshot() {
 }
 
 // ── EXTRACT AUDIO ─────────────────────────────────────────────────────
-function extractAudio() {
+async function extractAudio() {
   if (!videoFile) { toast('Upload a video first', 'err'); return; }
-  window.open(API + '/extract-audio/' + encodeURIComponent(videoFile.name), '_blank');
-  toast('Extracting audio as MP3...', 'inf');
+  const btn = document.getElementById('extractAudioBtn');
+  if (btn) { btn.disabled = true; }
+  try {
+    const r = await fetch(API + '/extract-audio/' + encodeURIComponent(videoFile.name));
+    if (r.status === 422) {
+      const d = await r.json();
+      toast(d.detail || 'This video has no audio stream', 'err');
+      return;
+    }
+    if (!r.ok) { toast('Audio extraction failed (HTTP ' + r.status + ')', 'err'); return; }
+    // Trigger download via blob
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = videoFile.name.replace(/\.[^.]+$/, '') + '_audio.mp3';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Audio extracted as MP3', 'ok');
+  } catch (err) {
+    toast('Error: ' + err.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; }
+  }
 }
 
 // ── CROP ──────────────────────────────────────────────────────────────
@@ -3172,22 +3204,27 @@ async function runDetectFillers() {
   document.getElementById('fillerProgWrap').classList.add('on');
   document.getElementById('fillerList').style.display = 'none';
   document.getElementById('fillerResult').classList.remove('on');
-  document.getElementById('fillerProgBar').style.width = '30%';
-  document.getElementById('fillerProgLabel').textContent = 'Scanning speech with Whisper…';
+  const barEl = document.getElementById('fillerProgBar');
+  const lblEl = document.getElementById('fillerProgLabel');
+  let fp = 5; barEl.style.width = '5%';
+  lblEl.textContent = 'Scanning speech with Whisper AI…';
+  const ft = setInterval(() => { fp = Math.min(88, fp + (88 - fp) * 0.06); barEl.style.width = fp.toFixed(0) + '%'; }, 400);
   try {
     const r = await fetch(API + '/detect-fillers', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: videoFile.name })
     });
     const d = await r.json();
-    document.getElementById('fillerProgBar').style.width = '100%';
+    clearInterval(ft); barEl.style.width = '100%'; lblEl.textContent = '✓ Done';
     setTimeout(() => document.getElementById('fillerProgWrap').classList.remove('on'), 500);
     btn.disabled = false; btn.classList.remove('running');
     if (d.error) { toast('Error: ' + d.error, 'err'); return; }
     _fillerWords = d.fillers || [];
     _renderFillerList();
+    if (!_fillerWords.length) toast('No filler words detected — great speech!', 'ok');
+    else toast(_fillerWords.length + ' filler words found', 'inf');
   } catch (err) {
-    document.getElementById('fillerProgWrap').classList.remove('on');
+    clearInterval(ft); document.getElementById('fillerProgWrap').classList.remove('on');
     btn.disabled = false; btn.classList.remove('running');
     toast('Error: ' + err.message, 'err');
   }
@@ -3260,18 +3297,21 @@ async function runDetectBeats() {
   btn.disabled = true; btn.classList.add('running');
   document.getElementById('beatProgWrap').classList.add('on');
   document.getElementById('beatResultPanel').style.display = 'none';
-  document.getElementById('beatProgBar').style.width = '15%';
-  document.getElementById('beatProgLabel').textContent = 'Extracting audio & analyzing beats…';
+  const barEl = document.getElementById('beatProgBar');
+  const lblEl = document.getElementById('beatProgLabel');
+  let fp = 5; barEl.style.width = '5%';
+  lblEl.textContent = 'Extracting audio & analyzing beats…';
+  const ft = setInterval(() => { fp = Math.min(88, fp + (88 - fp) * 0.07); barEl.style.width = fp.toFixed(0) + '%'; }, 300);
   try {
     const r = await fetch(API + '/detect-beats/' + encodeURIComponent(videoFile.name));
     const d = await r.json();
-    document.getElementById('beatProgBar').style.width = '100%';
+    clearInterval(ft); barEl.style.width = '100%'; lblEl.textContent = '✓ Done';
     setTimeout(() => document.getElementById('beatProgWrap').classList.remove('on'), 500);
     btn.disabled = false; btn.classList.remove('running');
     if (d.error) { toast('Beat detection failed: ' + d.error, 'err'); return; }
     _renderBeatResult(d);
   } catch (err) {
-    document.getElementById('beatProgWrap').classList.remove('on');
+    clearInterval(ft); document.getElementById('beatProgWrap').classList.remove('on');
     btn.disabled = false; btn.classList.remove('running');
     toast('Error: ' + err.message, 'err');
   }
@@ -3389,17 +3429,30 @@ async function runSceneDetect() {
   btn.disabled = true; btn.classList.add('running');
   document.getElementById('sceneProgWrap').classList.add('on');
   document.getElementById('sceneResultPanel').style.display = 'none';
-  document.getElementById('sceneProgBar').style.width = '30%';
-  document.getElementById('sceneProgLabel').textContent = 'Analyzing scene cuts…';
+
+  // Animate progress bar smoothly while waiting (scene detect is synchronous, takes ~2-10s)
+  let fakePct = 5;
+  const barEl = document.getElementById('sceneProgBar');
+  const lblEl = document.getElementById('sceneProgLabel');
+  barEl.style.width = '5%';
+  lblEl.textContent = 'Analyzing video for scene cuts…';
+  const fakeTimer = setInterval(() => {
+    fakePct = Math.min(90, fakePct + (90 - fakePct) * 0.08);
+    barEl.style.width = fakePct.toFixed(0) + '%';
+  }, 300);
+
   try {
     const r = await fetch(API + '/detect-scenes/' + encodeURIComponent(videoFile.name));
     const d = await r.json();
-    document.getElementById('sceneProgBar').style.width = '100%';
-    setTimeout(() => document.getElementById('sceneProgWrap').classList.remove('on'), 400);
+    clearInterval(fakeTimer);
+    barEl.style.width = '100%';
+    lblEl.textContent = '✓ Done';
+    setTimeout(() => document.getElementById('sceneProgWrap').classList.remove('on'), 500);
     btn.disabled = false; btn.classList.remove('running');
     if (d.error) { toast('Scene detection failed: ' + d.error, 'err'); return; }
     _renderScenes(d);
   } catch (err) {
+    clearInterval(fakeTimer);
     document.getElementById('sceneProgWrap').classList.remove('on');
     btn.disabled = false; btn.classList.remove('running');
     toast('Error: ' + err.message, 'err');
@@ -3742,6 +3795,7 @@ document.addEventListener('keydown', e => {
     case '3': switchTab('audio');   break;
     case '4': switchTab('tools');   break;
     case '5': switchTab('ai');      break;
+    case '6': switchTab('photo');   break;
     case 'r': case 'R':
       if (videoFile && !e.ctrlKey && !e.metaKey) { e.preventDefault(); runDetect(); }
       break;

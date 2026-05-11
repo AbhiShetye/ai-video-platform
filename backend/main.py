@@ -453,20 +453,29 @@ def ocr_results(job_id: str):
 
 @app.get("/extract-audio/{filename}")
 def extract_audio(filename: str):
-    import tempfile
+    import tempfile, subprocess as _sp
     safe_name = os.path.basename(filename)
     path = os.path.join(UPLOAD_DIR, safe_name)
     if not os.path.exists(path):
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="File not found")
-    tmp = tempfile.mktemp(suffix=".mp3", dir=UPLOAD_DIR)
-    import subprocess
-    subprocess.run(
-        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-         "-i", path, "-vn", "-acodec", "libmp3lame", "-q:a", "2", tmp],
-        check=True
+    probe = _sp.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a",
+         "-show_entries", "stream=codec_type",
+         "-of", "default=noprint_wrappers=1:nokey=1", path],
+        capture_output=True, text=True
     )
-    return FileResponse(tmp, media_type="audio/mpeg", filename="audio.mp3")
+    if "audio" not in probe.stdout:
+        raise HTTPException(status_code=422, detail="This video has no audio stream")
+    try:
+        tmp = tempfile.mktemp(suffix=".mp3", dir=UPLOAD_DIR)
+        _sp.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+             "-i", path, "-vn", "-acodec", "libmp3lame", "-q:a", "2", tmp],
+            check=True, capture_output=True
+        )
+        return FileResponse(tmp, media_type="audio/mpeg", filename="audio.mp3")
+    except _sp.CalledProcessError as exc:
+        raise HTTPException(status_code=500, detail="Audio extraction failed")
 
 
 # ══════════════════════════════════════════════════════════════════════
