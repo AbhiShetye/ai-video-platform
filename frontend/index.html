@@ -298,6 +298,50 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
 .ai-result.on{display:block;}
 .ai-dl-row{display:flex;gap:6px;}
 .ai-dl-row .dl-btn{flex:1;margin-bottom:0;}
+
+/* ── LAYOUT FIXES ────────────────────────────────────────────────── */
+/* Tools and AI tabs need explicit flex so inner tools-body can scroll */
+#content-tools,#content-ai{display:flex;flex-direction:column;}
+
+/* ── TAB CONTENT FADE TRANSITION ─────────────────────────────────── */
+#content-remove,#content-eraser,#content-audio,#content-tools,#content-ai{
+  animation:none;
+}
+.tab-enter{animation:tabfade .18s ease both;}
+@keyframes tabfade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+/* ── ANIMATED AI TAB ─────────────────────────────────────────────── */
+#tab-ai{position:relative;}
+#tab-ai::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;
+  background:linear-gradient(90deg,var(--p),var(--violet),var(--cyan));
+  border-radius:2px;animation:aipulse 2s ease-in-out infinite;}
+@keyframes aipulse{0%,100%{opacity:.5;transform:scaleX(.6);}50%{opacity:1;transform:scaleX(1);}}
+
+/* ── BETTER EMPTY STATE ──────────────────────────────────────────── */
+.feature-hints{display:flex;flex-direction:column;gap:6px;padding:10px 0;}
+.fhint{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--rsm);background:var(--s1);border:1px solid var(--border);}
+.fhint-icon{font-size:16px;width:28px;text-align:center;flex-shrink:0;}
+.fhint-text{font-size:11px;color:var(--t2);line-height:1.4;}
+.fhint-text strong{color:var(--t1);display:block;font-size:12px;margin-bottom:1px;}
+
+/* ── GLOWING PROGRESS BAR ────────────────────────────────────────── */
+.prog-bar{animation:progshine 2s ease-in-out infinite;}
+@keyframes progshine{0%,100%{box-shadow:0 0 6px rgba(129,140,248,.3);}50%{box-shadow:0 0 14px rgba(129,140,248,.7);}}
+
+/* ── TOPBAR FILE INFO ─────────────────────────────────────────────── */
+.tb-file{display:none;align-items:center;gap:6px;padding:4px 10px;background:var(--s2);border:1px solid var(--border);border-radius:20px;max-width:200px;overflow:hidden;}
+.tb-file.show{display:flex;}
+.tb-file-name{font-size:11px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tb-file-dur{font-size:10px;color:var(--t3);font-family:monospace;flex-shrink:0;}
+
+/* ── OBJECT LIST ANIMATION ────────────────────────────────────────── */
+.obj-item{animation:objin .12s ease both;}
+@keyframes objin{from{opacity:0;transform:translateX(-6px);}to{opacity:1;transform:none;}}
+
+/* ── BETTER DETECT SECTION ────────────────────────────────────────── */
+.detect-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.detect-header .panel-label{margin-bottom:0;}
+.obj-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--plo);color:var(--p);}
 </style>
 </head>
 <body>
@@ -320,6 +364,11 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
     <div class="topbar-step" id="s5"><div class="step-n">5</div>Export</div>
   </div>
   <div class="tb-right">
+    <div class="tb-file" id="tbFile">
+      <span style="font-size:12px;">&#127916;</span>
+      <span class="tb-file-name" id="tbFileName"></span>
+      <span class="tb-file-dur" id="tbFileDur"></span>
+    </div>
     <div class="kb-hint" id="kbHint">Space=Play &nbsp;·&nbsp; ←/→=Seek &nbsp;·&nbsp; 1-5=Tabs &nbsp;·&nbsp; R=Scan</div>
   </div>
 </div>
@@ -390,7 +439,16 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
           <span class="conf-val" id="confVal">40%</span>
         </div>
         <div class="obj-count" id="objCount"></div>
-        <div id="objList"><div class="obj-none">Upload a video to start</div></div>
+        <div id="objList">
+          <div class="obj-none" id="emptyState">
+            <div class="feature-hints">
+              <div class="fhint"><div class="fhint-icon">&#9986;</div><div class="fhint-text"><strong>AI Object Removal</strong>YOLO detects objects · LaMa fills background</div></div>
+              <div class="fhint"><div class="fhint-icon">&#10024;</div><div class="fhint-text"><strong>Magic Eraser</strong>Click multiple objects · erase all at once</div></div>
+              <div class="fhint"><div class="fhint-icon">&#127908;</div><div class="fhint-text"><strong>Auto Captions</strong>Whisper AI · 90+ languages · SRT export</div></div>
+              <div class="fhint"><div class="fhint-icon">&#127775;</div><div class="fhint-text"><strong>Background Removal</strong>rembg · choose any background color</div></div>
+            </div>
+          </div>
+        </div>
         <div class="scan-row">
           <button class="detect-btn" id="detectBtn" onclick="runDetect()" disabled>&#8635; Scan</button>
           <label class="scan-toggle" title="Scan entire video (slower)"><input type="checkbox" id="fullScanChk"> Full Video</label>
@@ -477,7 +535,7 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
     </div>
 
     <!-- ══ TOOLS TAB ══ -->
-    <div id="content-tools" style="display:none;flex:1;overflow:hidden;display:none;">
+    <div id="content-tools" style="display:none;flex:1;overflow:hidden;">
       <div class="tools-body">
 
         <div class="tool-card">
@@ -888,12 +946,18 @@ function showVideo(file) {
     document.getElementById('vidControls').style.display = 'flex';
     document.getElementById('timeline').style.display = 'block';
     document.getElementById('kbHint').parentElement.classList.add('video-loaded');
+    // File info in topbar
+    const tbFile = document.getElementById('tbFile');
+    const shortName = file.name.length > 22 ? file.name.slice(0,19) + '…' : file.name;
+    document.getElementById('tbFileName').textContent = shortName;
+    document.getElementById('tbFileDur').textContent = fmt(v.duration);
+    tbFile.classList.add('show');
     buildTimelineLabels();
     syncTimeline();
     startCanvas();
     document.getElementById('detectBtn').disabled = false;
     const tag = document.getElementById('vcTag');
-    if (tag) tag.textContent = file.name.length > 20 ? file.name.slice(0,20) + '…' : file.name;
+    if (tag) tag.textContent = shortName;
   };
   v.onerror = () => {
     toast('Could not load video — try a different file', 'err');
@@ -1257,8 +1321,38 @@ function reset() {
     const btn = document.getElementById(t+'Btn');
     if (btn) { btn.disabled = false; btn.classList.remove('running'); }
   });
+  // AI tab progress + results
+  ['caption','bg','stab'].forEach(t => {
+    const pw = document.getElementById(t === 'bg' ? 'bgProgWrap' : t === 'stab' ? 'stabProgWrap' : 'captionProgWrap');
+    const rw = document.getElementById(t === 'bg' ? 'bgResult' : t === 'stab' ? 'stabResult' : 'captionResult');
+    if (pw) pw.classList.remove('on');
+    if (rw) rw.classList.remove('on');
+    const btn = document.getElementById(t === 'bg' ? 'bgRemoveBtn' : t === 'stab' ? 'stabilizeBtn' : 'captionBtn');
+    if (btn) { btn.disabled = false; btn.classList.remove('running'); }
+  });
+  // Reset all tool/AI/visual state variables
   Object.keys(toolJobs).forEach(k => toolJobs[k] = null);
+  if (typeof _aiJobs !== 'undefined') Object.keys(_aiJobs).forEach(k => _aiJobs[k] = null);
+  if (typeof _effectJobIds !== 'undefined') Object.keys(_effectJobIds).forEach(k => _effectJobIds[k] = null);
+  selectedSpeed = 1.0; selectedAspect = '16:9'; selectedCompress = 'medium';
+  if (typeof _textPos !== 'undefined')    { _textPos = 'tc'; _textColor = 'white'; }
+  if (typeof _activeEffect !== 'undefined') _activeEffect = null;
+  if (typeof _cropPreset !== 'undefined')   _cropPreset = null;
+  if (typeof _loopCount !== 'undefined')    _loopCount = 3;
+  if (typeof _gifFps !== 'undefined')       _gifFps = 12;
+  if (typeof _captionStyle !== 'undefined') _captionStyle = 'white';
+  if (typeof _bgColor !== 'undefined')      _bgColor = 'black';
+  // Reset topbar file info
+  document.getElementById('tbFile').classList.remove('show');
   document.getElementById('objCount').textContent = '';
+  // Reset empty state
+  document.getElementById('objList').innerHTML =
+    '<div class="obj-none" id="emptyState"><div class="feature-hints">' +
+    '<div class="fhint"><div class="fhint-icon">&#9986;</div><div class="fhint-text"><strong>AI Object Removal</strong>YOLO detects objects · LaMa fills background</div></div>' +
+    '<div class="fhint"><div class="fhint-icon">&#10024;</div><div class="fhint-text"><strong>Magic Eraser</strong>Click multiple objects · erase all at once</div></div>' +
+    '<div class="fhint"><div class="fhint-icon">&#127908;</div><div class="fhint-text"><strong>Auto Captions</strong>Whisper AI · 90+ languages · SRT export</div></div>' +
+    '<div class="fhint"><div class="fhint-icon">&#127775;</div><div class="fhint-text"><strong>Background Removal</strong>rembg · choose any background color</div></div>' +
+    '</div></div>';
   setColorPreset('original');
   switchTab('remove');
   setStep(1);
@@ -1272,7 +1366,10 @@ function switchTab(tab) {
   ['remove','eraser','audio','tools','ai'].forEach(t => {
     const c = document.getElementById('content-' + t);
     const b = document.getElementById('tab-' + t);
-    if (c) c.style.display = t === tab ? '' : 'none';
+    if (c) {
+      c.style.display = t === tab ? '' : 'none';
+      if (t === tab) { c.classList.remove('tab-enter'); void c.offsetWidth; c.classList.add('tab-enter'); }
+    }
     if (b) b.classList.toggle('active', t === tab);
   });
   document.getElementById('videoWrap').classList.toggle('eraser-mode', tab === 'eraser');
@@ -1554,6 +1651,9 @@ function _getToolOp(type) {
   }
   if (type === 'aspect')   return { type: 'aspect',   ratio:  selectedAspect };
   if (type === 'compress') return { type: 'compress',  preset: selectedCompress };
+  if (type === 'sharpen')  return { type: 'sharpen',  amount: parseFloat(document.getElementById('sharpenAmt').value) / 10 };
+  if (type === 'denoise')  return { type: 'denoise',  amount: parseFloat(document.getElementById('denoiseAmt').value) / 10 };
+  if (type === 'vignette') return { type: 'vignette', angle:  parseFloat(document.getElementById('vignetteAmt').value) / 10 };
   if (type === 'crop') {
     const v = document.getElementById('vid');
     return {
@@ -1785,10 +1885,7 @@ function applyEffect() {
   const btn = document.getElementById('effectBtn');
   const pw  = document.getElementById('effectProgWrap');
   const rw  = document.getElementById('effectResult');
-  let op;
-  if (_activeEffect === 'sharpen') op = { type: 'sharpen', amount: parseFloat(document.getElementById('sharpenAmt').value) / 10 };
-  if (_activeEffect === 'denoise') op = { type: 'denoise', amount: parseFloat(document.getElementById('denoiseAmt').value) / 10 };
-  if (_activeEffect === 'vignette') op = { type: 'vignette', angle: parseFloat(document.getElementById('vignetteAmt').value) / 10 };
+  const op  = _getToolOp(_activeEffect);  // consistent with all other tools
   btn.disabled = true; btn.classList.add('running');
   pw.classList.add('on'); rw.classList.remove('on');
   document.getElementById('effectProgBar').style.width = '0%';

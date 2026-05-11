@@ -20,6 +20,23 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI()
 
+
+@app.on_event("startup")
+async def _warmup():
+    """Pre-load heavy AI models in background so first user request is instant."""
+    import asyncio, threading
+    def _load():
+        try:
+            from pipeline.engine import _load_yolo
+            _load_yolo()
+            from pipeline.ai_tools import _load_whisper, _load_rembg
+            _load_whisper()
+            _load_rembg()
+        except Exception:
+            pass  # non-fatal — models load on demand if this fails
+    threading.Thread(target=_load, daemon=True, name="model-warmup").start()
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

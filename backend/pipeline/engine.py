@@ -168,7 +168,7 @@ def _lama_inpaint(frame_path: str, mask: np.ndarray, output_path: str):
         # ── FAST PATH: smooth/neutral background (wall, ceiling, floor) ──────
         # Run the large-sigma Gaussian at 1/4 resolution (identical quality,
         # ~50× faster than full-res because kernel cost scales with image area).
-        DS = 4
+        DS = 6   # 1/6 res → 36× fewer pixels than full-res → ~3× faster than DS=4
         sh, sw   = max(1, h // DS), max(1, w // DS)
         frame_s  = cv2.resize(frame,     (sw, sh), interpolation=cv2.INTER_AREA)
         samp_s   = cv2.resize(sample_px, (sw, sh), interpolation=cv2.INTER_AREA)
@@ -363,7 +363,7 @@ def run_pipeline(video_path: str, command: dict, job_id: str | None = None):
             mask = _bbox_mask(fp, bbox)
             return _lama_inpaint(fp, mask, op)
 
-        workers = min(4, os.cpu_count() or 1) if neutral_bg else 1
+        workers = min(8, os.cpu_count() or 1) if neutral_bg else 1
         completed = 0
         jobs[job_id]["progress"] = 30
         with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -936,7 +936,7 @@ def run_magic_erase(video_path: str, command: dict, job_id: str = None):
             _lama_inpaint(fp, mask, op)
             return op
 
-        workers   = min(4, os.cpu_count() or 1) if neutral_bg else 1
+        workers   = min(8, os.cpu_count() or 1) if neutral_bg else 1
         completed = 0
         jobs[job_id]["progress"] = 30
         with ThreadPoolExecutor(max_workers=workers) as pool:
