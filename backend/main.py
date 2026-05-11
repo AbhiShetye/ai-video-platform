@@ -26,20 +26,53 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 app = FastAPI()
 
 
+import time as _time
+
+_model_status: dict = {}   # tracks which models loaded OK / failed
+
 @app.on_event("startup")
 async def _warmup():
-    """Pre-load heavy AI models in background so first user request is instant."""
-    import asyncio, threading
+    """Pre-load heavy AI models in background + start periodic job-cleanup."""
+    import threading
+
     def _load():
-        try:
-            from pipeline.engine import _load_yolo
-            _load_yolo()
-            from pipeline.ai_tools import _load_whisper, _load_rembg
-            _load_whisper()
-            _load_rembg()
-        except Exception:
-            pass  # non-fatal — models load on demand if this fails
+        steps = [
+            ("yolo",    "pipeline.engine",   "_load_yolo",    []),
+            ("whisper", "pipeline.ai_tools",  "_load_whisper", ["small"]),
+            ("rembg",   "pipeline.ai_tools",  "_load_rembg",   []),
+        ]
+        for name, mod, fn, args in steps:
+            try:
+                import importlib
+                m = importlib.import_module(mod)
+                getattr(m, fn)(*args)
+                _model_status[name] = "ready"
+            except Exception as exc:
+                _model_status[name] = f"error: {exc}"
     threading.Thread(target=_load, daemon=True, name="model-warmup").start()
+
+    def _cleanup_jobs():
+        """Remove jobs older than 2 hours to prevent memory leaks."""
+        while True:
+            _time.sleep(3600)
+            cutoff = _time.time() - 7200
+            with _jobs_lock:
+                stale = [k for k, v in jobs.items()
+                         if isinstance(v, dict) and v.get("_ts", 0) < cutoff]
+                for k in stale:
+                    del jobs[k]
+    from pipeline.engine import _jobs_lock
+    threading.Thread(target=_cleanup_jobs, daemon=True, name="job-cleanup").start()
+
+
+@app.get("/health")
+def health():
+    """Health + model-status check for frontend connection verification."""
+    return {
+        "status": "ok",
+        "models": _model_status,
+        "jobs": len(jobs),
+    }
 
 
 app.add_middleware(

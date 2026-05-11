@@ -27,7 +27,7 @@ _whisper_model      = None
 _whisper_model_lock = threading.Lock()
 
 
-def _load_whisper(size: str = "base"):
+def _load_whisper(size: str = "small"):
     global _whisper_model
     if _whisper_model is None:
         with _whisper_model_lock:

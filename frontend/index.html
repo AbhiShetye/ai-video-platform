@@ -1607,8 +1607,42 @@ let pollTimer = null;
 let rafId = null;
 let dragging = null;
 let editS = 0, editE = 0;
+let _serverOnline = false;
 
 const COLORS = ['#818cf8','#38bdf8','#34d399','#fbbf24','#fb923c','#f87171'];
+
+// ── SERVER CONNECTION CHECK ────────────────────────────────────────────
+async function checkServer() {
+  try {
+    const r = await fetch(API + '/health', { signal: AbortSignal.timeout(4000) });
+    if (r.ok) {
+      _serverOnline = true;
+      const d = await r.json();
+      const modCount = Object.values(d.models || {}).filter(v => v === 'ready').length;
+      if (modCount > 0) toast('FrameAI ready · ' + modCount + ' AI models loaded', 'ok');
+      else toast('FrameAI connected · models loading in background…', 'inf');
+      return true;
+    }
+  } catch (_) {}
+  _serverOnline = false;
+  showServerError();
+  return false;
+}
+
+function showServerError() {
+  const dz = document.getElementById('dropZone');
+  const warn = document.createElement('div');
+  warn.id = 'serverWarn';
+  warn.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(5,5,13,.92);z-index:20;border-radius:20px;';
+  warn.innerHTML = `
+    <div style="font-size:32px;">⚠️</div>
+    <div style="font-size:16px;font-weight:700;color:#f87171;">Server not running</div>
+    <div style="font-size:13px;color:#64748b;text-align:center;max-width:280px;line-height:1.6;">Start the backend first:<br><code style="background:#1e1e36;padding:4px 10px;border-radius:6px;color:#818cf8;">uvicorn main:app --reload</code></div>
+    <button onclick="checkServer().then(ok=>ok&&document.getElementById('serverWarn')?.remove())" style="margin-top:8px;padding:10px 24px;background:linear-gradient(135deg,#818cf8,#38bdf8);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Retry Connection</button>`;
+  dz.style.position = 'relative';
+  dz.appendChild(warn);
+}
+checkServer();
 
 function setStep(n) {
   for (let i = 1; i <= 5; i++) {
@@ -1643,27 +1677,67 @@ document.getElementById('dropZone').addEventListener('drop', e => {
   if (file && file.type.startsWith('video/')) uploadFile(file);
 });
 
-async function uploadFile(file) {
+const _ALLOWED_EXT = new Set(['mp4','mov','avi','mkv','webm','m4v']);
+const MAX_FILE_MB = 2048; // 2GB hard limit
+
+function uploadFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!_ALLOWED_EXT.has(ext)) {
+    toast('Unsupported format: .' + ext + ' — use MP4, MOV, AVI, MKV, WEBM', 'err'); return;
+  }
+  const sizeMB = file.size / 1048576;
+  if (sizeMB > MAX_FILE_MB) {
+    toast('File too large (' + Math.round(sizeMB) + ' MB). Max 2 GB.', 'err'); return;
+  }
+
   videoFile = file;
   document.getElementById('dropZone').style.display = 'none';
-  document.getElementById('uploading').classList.add('on');
+  const upEl = document.getElementById('uploading');
+  upEl.classList.add('on');
+  upEl.innerHTML = `<div class="spin" style="width:38px;height:38px;border-width:3px;"></div>
+    <div class="up-label" id="upLabel">Uploading… 0%</div>
+    <div style="width:200px;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;">
+      <div id="upBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--p),var(--cyan));transition:width .2s;"></div>
+    </div>`;
   setStep(1);
-  try {
-    const fd = new FormData();
-    fd.append('file', file);
-    const r = await fetch(API + '/upload-video', { method: 'POST', body: fd });
-    const d = await r.json();
-    if (!d.success) throw new Error(d.error || 'Upload failed');
-    document.getElementById('uploading').classList.remove('on');
-    showVideo(file);
-    toast('Uploaded! Scanning for objects...', 'ok');
-    setStep(2);
-    await runDetect();
-  } catch (err) {
+
+  const fd = new FormData();
+  fd.append('file', file);
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', API + '/upload-video');
+
+  xhr.upload.onprogress = e => {
+    if (!e.lengthComputable) return;
+    const pct = Math.round(e.loaded / e.total * 100);
+    const el = document.getElementById('upBar');
+    const lb = document.getElementById('upLabel');
+    if (el) el.style.width = pct + '%';
+    if (lb) lb.textContent = 'Uploading… ' + pct + '%';
+  };
+
+  xhr.onload = async () => {
+    upEl.classList.remove('on');
+    try {
+      const d = JSON.parse(xhr.responseText);
+      if (!d.success) throw new Error(d.error || 'Upload failed');
+      showVideo(file);
+      toast('Uploaded! Scanning for objects…', 'ok');
+      setStep(2);
+      await runDetect();
+    } catch (err) {
+      document.getElementById('dropZone').style.display = '';
+      toast('Upload failed: ' + err.message, 'err');
+    }
+  };
+
+  xhr.onerror = () => {
+    upEl.classList.remove('on');
     document.getElementById('dropZone').style.display = '';
-    document.getElementById('uploading').classList.remove('on');
-    toast('Upload failed: ' + err.message, 'err');
-  }
+    toast('Upload failed — is the server running?', 'err');
+    if (!_serverOnline) checkServer();
+  };
+
+  xhr.send(fd);
 }
 
 function showVideo(file) {
@@ -2056,15 +2130,35 @@ function reset() {
     const btn = document.getElementById(t+'Btn');
     if (btn) { btn.disabled = false; btn.classList.remove('running'); }
   });
-  // AI tab progress + results
-  ['caption','bg','stab'].forEach(t => {
-    const pw = document.getElementById(t === 'bg' ? 'bgProgWrap' : t === 'stab' ? 'stabProgWrap' : 'captionProgWrap');
-    const rw = document.getElementById(t === 'bg' ? 'bgResult' : t === 'stab' ? 'stabResult' : 'captionResult');
-    if (pw) pw.classList.remove('on');
-    if (rw) rw.classList.remove('on');
-    const btn = document.getElementById(t === 'bg' ? 'bgRemoveBtn' : t === 'stab' ? 'stabilizeBtn' : 'captionBtn');
-    if (btn) { btn.disabled = false; btn.classList.remove('running'); }
-  });
+  // AI tab — clear all progress bars and results
+  ['captionProgWrap','bgProgWrap','stabProgWrap',
+   'fillerProgWrap','silenceProgWrap','speechEnhProgWrap',
+   'beatProgWrap','rampProgWrap','thumbProgWrap','ocrProgWrap']
+    .forEach(id => document.getElementById(id)?.classList.remove('on'));
+  ['captionResult','bgResult','stabResult',
+   'fillerResult','silenceResult','speechEnhResult','rampResult','thumbResult','ocrResult']
+    .forEach(id => document.getElementById(id)?.classList.remove('on'));
+  ['captionBtn','bgRemoveBtn','stabilizeBtn',
+   'fillerDetectBtn','silenceBtn','speechEnhBtn',
+   'beatBtn','rampBtn','thumbBtn','ocrBtn']
+    .forEach(id => {
+      const b = document.getElementById(id);
+      if (b) { b.disabled = false; b.classList.remove('running'); }
+    });
+  // Novel AI UI state
+  const fillerList = document.getElementById('fillerList');
+  if (fillerList) { fillerList.style.display = 'none'; fillerList.innerHTML = ''; }
+  const beatPanel = document.getElementById('beatResultPanel');
+  if (beatPanel) beatPanel.style.display = 'none';
+  const ocrEntries = document.getElementById('ocrEntries');
+  if (ocrEntries) ocrEntries.innerHTML = '';
+  const ocrCount = document.getElementById('ocrCount');
+  if (ocrCount) ocrCount.textContent = '';
+  const thumbImg = document.getElementById('thumbPreview');
+  if (thumbImg) { thumbImg.src = ''; thumbImg.style.display = 'none'; }
+  // Cancel all active pollers
+  _activePollers.forEach(t => clearInterval(t));
+  _activePollers.clear();
   // Reset all tool/AI/visual state variables
   Object.keys(toolJobs).forEach(k => toolJobs[k] = null);
   if (typeof _aiJobs !== 'undefined') Object.keys(_aiJobs).forEach(k => _aiJobs[k] = null);
@@ -2237,12 +2331,19 @@ let audioSegments = [];
 let muteJobId = null;
 
 function addSegment() {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
   const s = parseFloat(document.getElementById('segStart').value);
   const e = parseFloat(document.getElementById('segEnd').value);
-  if (isNaN(s) || isNaN(e) || e <= s) { toast('End must be greater than start', 'err'); return; }
-  if (!videoFile) { toast('Upload a video first', 'err'); return; }
-  audioSegments.push({ start: s, end: e });
+  if (isNaN(s) || isNaN(e)) { toast('Enter valid start and end times', 'err'); return; }
+  if (e <= s) { toast('End time must be after start time', 'err'); return; }
+  if (duration && s >= duration) { toast('Start time exceeds video length (' + fmt(duration) + ')', 'err'); return; }
+  const clampedEnd = duration ? Math.min(e, duration) : e;
+  if (audioSegments.some(seg => seg.start === s && seg.end === clampedEnd)) {
+    toast('Segment already added', 'inf'); return;
+  }
+  audioSegments.push({ start: s, end: clampedEnd });
   renderSegList();
+  toast('Segment added: ' + fmtSeg(s) + ' → ' + fmtSeg(clampedEnd), 'ok');
 }
 
 function renderSegList() {
@@ -2305,38 +2406,68 @@ function _fmtElapsed(ms) {
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
 
+const _activePollers = new Map(); // jid → intervalId (prevents duplicate pollers)
+
 function pollGenericJob(jid, barId, labelId, wrapId, resultId, btn, btnLabel) {
   if (barId.startsWith('erase')) eraserJobId = jid;
   if (barId.startsWith('mute'))  muteJobId   = jid;
+
+  // Cancel any prior poller for this bar
+  if (_activePollers.has(barId)) clearInterval(_activePollers.get(barId));
+
   const startTime = Date.now();
+  let errStreak = 0;
+  const MAX_WAIT_MS = 20 * 60 * 1000; // 20 min max
+
   const timer = setInterval(async () => {
+    // Timeout guard
+    if (Date.now() - startTime > MAX_WAIT_MS) {
+      clearInterval(timer); _activePollers.delete(barId);
+      document.getElementById(wrapId)?.classList.remove('on');
+      if (btn?.disabled !== undefined) { btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel; }
+      toast('Job timed out after 20 min — try a shorter clip', 'err');
+      return;
+    }
     try {
-      const r = await fetch(API + '/status/' + jid);
+      const r = await fetch(API + '/status/' + jid, { signal: AbortSignal.timeout(8000) });
       const d = await r.json();
+      errStreak = 0;
       const pct = d.progress || 0;
-      document.getElementById(barId).style.width = pct + '%';
-      const key = Object.keys(PROG_LABELS).reverse().find(k => pct >= +k);
-      const baseLabel = key ? PROG_LABELS[key] : 'Processing...';
-      const elapsed = _fmtElapsed(Date.now() - startTime);
-      document.getElementById(labelId).textContent = baseLabel + ' · ' + elapsed;
+      const barEl = document.getElementById(barId);
+      const lblEl = document.getElementById(labelId);
+      if (barEl) barEl.style.width = pct + '%';
+      if (lblEl) {
+        const key = Object.keys(PROG_LABELS).reverse().find(k => pct >= +k);
+        lblEl.textContent = (key ? PROG_LABELS[key] : 'Processing…') + ' · ' + _fmtElapsed(Date.now() - startTime);
+      }
       if (d.status === 'completed') {
-        clearInterval(timer);
-        document.getElementById(barId).style.width = '100%';
-        document.getElementById(labelId).textContent = 'Done! · ' + elapsed;
+        clearInterval(timer); _activePollers.delete(barId);
+        if (barEl) barEl.style.width = '100%';
+        if (lblEl) lblEl.textContent = '✓ Done · ' + _fmtElapsed(Date.now() - startTime);
         setTimeout(() => {
-          document.getElementById(wrapId).classList.remove('on');
-          document.getElementById(resultId).classList.add('on');
-          btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel;
-          toast('Done! Click Download.', 'ok');
+          document.getElementById(wrapId)?.classList.remove('on');
+          document.getElementById(resultId)?.classList.add('on');
+          if (btn?.disabled !== undefined) { btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel; }
+          toast('Done! Click Download to save.', 'ok');
         }, 600);
       } else if (d.status === 'failed') {
-        clearInterval(timer);
-        document.getElementById(wrapId).classList.remove('on');
-        btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel;
-        toast('Failed: ' + (d.error || 'Unknown error'), 'err');
+        clearInterval(timer); _activePollers.delete(barId);
+        document.getElementById(wrapId)?.classList.remove('on');
+        if (btn?.disabled !== undefined) { btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel; }
+        const detail = d.error ? d.error.slice(0, 120) : 'Unknown error';
+        toast('Processing failed: ' + detail, 'err');
       }
-    } catch (err) { /* network hiccup */ }
+    } catch (_) {
+      errStreak++;
+      if (errStreak >= 5) { // 10s of no response
+        clearInterval(timer); _activePollers.delete(barId);
+        document.getElementById(wrapId)?.classList.remove('on');
+        if (btn?.disabled !== undefined) { btn.disabled = false; btn.classList.remove('running'); btn.textContent = btnLabel; }
+        toast('Lost connection to server. Check server is running.', 'err');
+      }
+    }
   }, 2000);
+  _activePollers.set(barId, timer);
 }
 
 // ── TOOLS ────────────────────────────────────────────────────────────
@@ -2471,7 +2602,24 @@ function updateFadeVal(id, valId) {
 async function runTool(type) {
   if (!videoFile) { toast('Upload a video first', 'err'); return; }
   const op = _getToolOp(type);
-  if (!op) return;
+  if (!op) { toast('Configure the operation first', 'err'); return; }
+
+  // Validate trim bounds
+  if (type === 'trim') {
+    if (op.end <= op.start) { toast('End time must be after start time', 'err'); return; }
+    if (duration && op.start >= duration) { toast('Start time exceeds video duration', 'err'); return; }
+  }
+  // Validate crop dims
+  if (type === 'crop') {
+    const v = document.getElementById('vid');
+    if (v.videoWidth && (op.width > v.videoWidth || op.height > v.videoHeight)) {
+      toast('Crop size exceeds video dimensions (' + v.videoWidth + '×' + v.videoHeight + ')', 'err'); return;
+    }
+    if (op.width < 4 || op.height < 4) { toast('Crop dimensions too small (min 4px)', 'err'); return; }
+  }
+  // Validate text
+  if (type === 'text' && !op.text.trim()) { toast('Enter text to overlay', 'err'); return; }
+
   const btn = document.getElementById(type + 'Btn');
   const pw  = document.getElementById(type + 'ProgWrap');
   const rw  = document.getElementById(type + 'Result');

@@ -16,8 +16,16 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
 
+import time as _time
 jobs: dict = {}
 _jobs_lock  = threading.Lock()
+
+
+def _new_job(job_id: str) -> dict:
+    """Create a job entry stamped with creation time."""
+    entry = {"status": "processing", "progress": 0, "_ts": _time.time()}
+    jobs[job_id] = entry
+    return entry
 
 # Adaptive extraction FPS:
 # • FAST path (Gaussian fill, ~0.2 s/frame) → 6 fps → smooth motion
