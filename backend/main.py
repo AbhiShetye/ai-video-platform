@@ -9,6 +9,7 @@ load_dotenv()
 
 from pipeline.engine import (run_pipeline, run_magic_erase, run_mute_audio,
                              run_quick_edit, get_job_status, jobs)
+from pipeline.ai_tools import run_auto_captions, run_bg_remove, run_stabilize
 from routes.ai_studio import router as ai_studio_router
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -168,6 +169,80 @@ def download(job_id: str):
             return FileResponse(output, media_type="audio/mpeg", filename="audio.mp3")
         return FileResponse(output, media_type="video/mp4", filename="edited.mp4")
     return {"error": "Not ready"}
+
+
+# ── AI TOOLS ──────────────────────────────────────────────────────────────────
+
+class CaptionsRequest(BaseModel):
+    filename: str
+    language: str  = "auto"   # ISO 639-1 or "auto"
+    burn:     bool = True     # burn subtitles into video
+    style:    str  = "white"  # white | yellow | large
+
+@app.post("/auto-captions")
+def auto_captions(req: CaptionsRequest):
+    safe_name = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe_name)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(
+        target=run_auto_captions,
+        args=(path, req.language, req.burn, req.style, job_id),
+        daemon=True
+    ).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+class BgRemoveRequest(BaseModel):
+    filename: str
+    bg_color: str = "black"   # black | white | green | blue | red
+
+@app.post("/remove-bg")
+def remove_bg(req: BgRemoveRequest):
+    safe_name = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe_name)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(
+        target=run_bg_remove,
+        args=(path, req.bg_color, job_id),
+        daemon=True
+    ).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+class StabilizeRequest(BaseModel):
+    filename:   str
+    shakiness:  int = 5    # 1–10
+    smoothing:  int = 30   # 5–100
+
+@app.post("/stabilize")
+def stabilize(req: StabilizeRequest):
+    safe_name = os.path.basename(req.filename)
+    path = os.path.join(UPLOAD_DIR, safe_name)
+    if not os.path.exists(path):
+        return {"error": "File not found"}
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    threading.Thread(
+        target=run_stabilize,
+        args=(path, req.shakiness, req.smoothing, job_id),
+        daemon=True
+    ).start()
+    return {"job_id": job_id, "status": "processing"}
+
+
+@app.get("/download-srt/{job_id}")
+def download_srt(job_id: str):
+    s = get_job_status(job_id)
+    srt = s.get("srt")
+    if s.get("status") == "completed" and srt and os.path.exists(srt):
+        return FileResponse(srt, media_type="text/plain", filename="captions.srt")
+    return {"error": "SRT not available"}
 
 
 @app.get("/extract-audio/{filename}")

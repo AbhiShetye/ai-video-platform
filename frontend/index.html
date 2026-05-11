@@ -270,6 +270,34 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
 .effect-btn.selected{background:var(--plo);border-color:var(--p);color:var(--p);}
 .scr-btn{padding:6px 10px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rxs);color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:all .15s;}
 .scr-btn:hover{background:var(--s3);color:var(--t1);border-color:var(--borderhi);}
+
+/* ── AI TAB ──────────────────────────────────────────────────────── */
+.ai-card{background:linear-gradient(135deg,rgba(129,140,248,.06),rgba(56,189,248,.04));border:1px solid rgba(129,140,248,.2);border-radius:var(--r);padding:14px;margin-bottom:10px;position:relative;overflow:hidden;transition:border-color .2s;}
+.ai-card::before{content:'';position:absolute;top:0;right:0;width:60px;height:60px;background:radial-gradient(circle,rgba(129,140,248,.12),transparent);pointer-events:none;}
+.ai-card:hover{border-color:rgba(129,140,248,.35);}
+.ai-card-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:var(--p);margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.ai-card-desc{font-size:11px;color:var(--t3);margin-bottom:12px;line-height:1.5;}
+.ai-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--p),var(--violet));border:none;border-radius:var(--rsm);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(129,140,248,.3);letter-spacing:.3px;}
+.ai-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(129,140,248,.5);}
+.ai-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none;}
+.ai-btn.running::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);animation:sweep 1.2s infinite;}
+.ai-badge{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,var(--p),var(--violet));border-radius:20px;padding:2px 8px;font-size:9px;font-weight:800;color:#fff;letter-spacing:.5px;margin-left:4px;vertical-align:middle;}
+.lang-select{width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--rxs);padding:7px 10px;color:var(--t1);font-size:12px;font-family:inherit;margin-bottom:8px;appearance:none;cursor:pointer;transition:border-color .15s;}
+.lang-select:focus{outline:none;border-color:var(--p);}
+.style-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px;}
+.style-btn{padding:8px 4px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rxs);color:var(--t3);font-size:10px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.4;}
+.style-btn:hover{border-color:var(--p);color:var(--p);}
+.style-btn.active{background:var(--plo);border-color:var(--p);color:var(--p);}
+.bg-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px;}
+.bg-swatch{height:30px;border-radius:var(--rxs);cursor:pointer;border:2px solid transparent;transition:all .15s;}
+.bg-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--p);}
+.stab-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.stab-label{font-size:11px;color:var(--t3);min-width:72px;}
+.stab-val{font-size:11px;color:var(--p);font-family:monospace;min-width:24px;text-align:right;font-weight:700;}
+.ai-result{display:none;margin-top:10px;}
+.ai-result.on{display:block;}
+.ai-dl-row{display:flex;gap:6px;}
+.ai-dl-row .dl-btn{flex:1;margin-bottom:0;}
 </style>
 </head>
 <body>
@@ -292,7 +320,7 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
     <div class="topbar-step" id="s5"><div class="step-n">5</div>Export</div>
   </div>
   <div class="tb-right">
-    <div class="kb-hint" id="kbHint">Space=Play &nbsp;·&nbsp; ←/→=Seek &nbsp;·&nbsp; 1-4=Tabs &nbsp;·&nbsp; R=Scan</div>
+    <div class="kb-hint" id="kbHint">Space=Play &nbsp;·&nbsp; ←/→=Seek &nbsp;·&nbsp; 1-5=Tabs &nbsp;·&nbsp; R=Scan</div>
   </div>
 </div>
 
@@ -346,9 +374,10 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
   <div class="panel">
     <div class="panel-tabs">
       <button class="ptab active" id="tab-remove" onclick="switchTab('remove')"><span class="ptab-icon">&#9986;</span>Remove</button>
-      <button class="ptab" id="tab-eraser" onclick="switchTab('eraser')"><span class="ptab-icon">&#10024;</span>Eraser</button>
+      <button class="ptab" id="tab-eraser" onclick="switchTab('eraser')"><span class="ptab-icon">&#10024;</span>Erase</button>
       <button class="ptab" id="tab-audio" onclick="switchTab('audio')"><span class="ptab-icon">&#127925;</span>Audio</button>
       <button class="ptab" id="tab-tools" onclick="switchTab('tools')"><span class="ptab-icon">&#9881;</span>Tools</button>
+      <button class="ptab" id="tab-ai" onclick="switchTab('ai')" style="color:var(--p);"><span class="ptab-icon">&#129302;</span>AI</button>
     </div>
 
     <!-- ══ REMOVE TAB ══ -->
@@ -673,6 +702,101 @@ input[type=range].fslider::-webkit-slider-thumb{-webkit-appearance:none;width:13
 
       </div>
     </div>
+    <!-- ══ AI TAB ══ -->
+    <div id="content-ai" style="display:none;flex:1;overflow:hidden;">
+      <div class="tools-body">
+
+        <!-- AUTO CAPTIONS -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#127908; Auto Captions <span class="ai-badge">WHISPER AI</span></div>
+          <div class="ai-card-desc">Automatically transcribe speech and burn subtitles into your video. Supports 90+ languages.</div>
+          <div style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Language</div>
+          <select class="lang-select" id="captionLang">
+            <option value="auto">Auto-detect</option>
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="ru">Russian</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="zh">Chinese</option>
+            <option value="ar">Arabic</option>
+            <option value="hi">Hindi</option>
+          </select>
+          <div style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Subtitle Style</div>
+          <div class="style-grid" id="captionStyles">
+            <div class="style-btn active" onclick="setCaptionStyle('white')">White<br><span style="font-weight:400;color:var(--t3)">Classic</span></div>
+            <div class="style-btn" onclick="setCaptionStyle('yellow')">Yellow<br><span style="font-weight:400;color:var(--t3)">Vibrant</span></div>
+            <div class="style-btn" onclick="setCaptionStyle('large')">Large<br><span style="font-weight:400;color:var(--t3)">Bold</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);cursor:pointer;">
+              <input type="checkbox" id="captionBurn" checked style="accent-color:var(--p);width:14px;height:14px;">
+              Burn into video
+            </label>
+            <span style="font-size:11px;color:var(--t3);">(uncheck to download .srt only)</span>
+          </div>
+          <button class="ai-btn" id="captionBtn" onclick="runAutoCaption()">&#127908; Generate Captions</button>
+          <div class="progress-wrap" id="captionProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="captionProgBar"></div></div>
+            <div class="prog-label" id="captionProgLabel">Transcribing with Whisper AI...</div>
+          </div>
+          <div class="ai-result" id="captionResult">
+            <div class="ai-dl-row">
+              <button class="dl-btn" id="captionDlVideo" onclick="downloadCaption('video')" style="display:none;">&#11015; Download Video</button>
+              <button class="dl-btn" onclick="downloadCaption('srt')" style="background:linear-gradient(135deg,var(--p),var(--violet));">&#11015; Download .SRT</button>
+            </div>
+            <div id="captionInfo" style="font-size:11px;color:var(--t3);margin-top:8px;text-align:center;"></div>
+          </div>
+        </div>
+
+        <!-- BACKGROUND REMOVAL -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#127775; Background Removal <span class="ai-badge">REMBG AI</span></div>
+          <div class="ai-card-desc">Remove the video background with AI and replace it with a solid color. Perfect for green screen effects.</div>
+          <div style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Background Color</div>
+          <div class="bg-grid" id="bgSwatches">
+            <div class="bg-swatch active" style="background:#000" onclick="setBgColor('black')" title="Black"></div>
+            <div class="bg-swatch" style="background:#fff" onclick="setBgColor('white')" title="White"></div>
+            <div class="bg-swatch" style="background:#00ff00" onclick="setBgColor('green')" title="Green Screen"></div>
+            <div class="bg-swatch" style="background:#0000ff" onclick="setBgColor('blue')" title="Blue Screen"></div>
+            <div class="bg-swatch" style="background:#ff0000" onclick="setBgColor('red')" title="Red"></div>
+          </div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:10px;">Processing at 2fps — best for clips under 30 seconds.</div>
+          <button class="ai-btn" id="bgRemoveBtn" onclick="runBgRemove()" style="background:linear-gradient(135deg,#059669,var(--cyan));">&#127775; Remove Background</button>
+          <div class="progress-wrap" id="bgProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="bgProgBar"></div></div>
+            <div class="prog-label" id="bgProgLabel">Processing frames with AI...</div>
+          </div>
+          <div class="ai-result" id="bgResult">
+            <button class="dl-btn" onclick="downloadAiJob('bgRemoveBtn')" id="bgDlBtn" style="background:linear-gradient(135deg,#059669,var(--cyan));">&#11015; Download Video</button>
+          </div>
+        </div>
+
+        <!-- STABILIZATION -->
+        <div class="ai-card">
+          <div class="ai-card-title">&#127911; Stabilize Video <span class="ai-badge">VIDSTAB</span></div>
+          <div class="ai-card-desc">Remove camera shake and jitter. Two-pass analysis for smooth, professional-looking footage.</div>
+          <div class="stab-row"><span class="stab-label">Shakiness</span><input type="range" class="fslider" id="stabShakiness" min="1" max="10" value="5" oninput="document.getElementById('stabShakVal').textContent=this.value"><span class="stab-val" id="stabShakVal">5</span></div>
+          <div class="stab-row"><span class="stab-label">Smoothing</span><input type="range" class="fslider" id="stabSmoothing" min="5" max="100" value="30" oninput="document.getElementById('stabSmVal').textContent=this.value"><span class="stab-val" id="stabSmVal">30</span></div>
+          <div class="trim-info" style="margin-bottom:10px;">Higher shakiness = more aggressive correction. Higher smoothing = smoother but may crop more.</div>
+          <button class="ai-btn" id="stabilizeBtn" onclick="runStabilize()" style="background:linear-gradient(135deg,var(--amb),#ef4444);">&#127911; Stabilize Video</button>
+          <div class="progress-wrap" id="stabProgWrap" style="margin-top:10px;">
+            <div class="prog-bar-bg"><div class="prog-bar" id="stabProgBar"></div></div>
+            <div class="prog-label" id="stabProgLabel">Analyzing motion...</div>
+          </div>
+          <div class="ai-result" id="stabResult">
+            <button class="preview-btn" onclick="previewAiJob('stabilizeBtn')">&#9654; Preview</button>
+            <button class="dl-btn" onclick="downloadAiJob('stabilizeBtn')" style="background:linear-gradient(135deg,var(--amb),#ef4444);">&#11015; Download Stabilized</button>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- end #content-ai -->
+
   </div>
 </div>
 
@@ -1145,7 +1269,7 @@ setStep(1);
 let activeTab = 'remove';
 function switchTab(tab) {
   activeTab = tab;
-  ['remove','eraser','audio','tools'].forEach(t => {
+  ['remove','eraser','audio','tools','ai'].forEach(t => {
     const c = document.getElementById('content-' + t);
     const b = document.getElementById('tab-' + t);
     if (c) c.style.display = t === tab ? '' : 'none';
@@ -1716,6 +1840,146 @@ function setGifFps(fps) {
   });
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// AI TAB — Auto Captions, Background Removal, Stabilization
+// ══════════════════════════════════════════════════════════════════════════════
+const _aiJobs = { caption: null, bgRemove: null, stabilize: null };
+let _captionStyle = 'white';
+let _bgColor      = 'black';
+
+function setCaptionStyle(s) {
+  _captionStyle = s;
+  document.querySelectorAll('#captionStyles .style-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['white','yellow','large'][i] === s);
+  });
+}
+
+function setBgColor(c) {
+  _bgColor = c;
+  document.querySelectorAll('#bgSwatches .bg-swatch').forEach(sw => {
+    sw.classList.toggle('active', sw.title.toLowerCase() === c);
+  });
+}
+
+function _startAiJob(btnId, progWrapId, progBarId, progLabelId, resultId, url, body, onDone) {
+  if (!videoFile) { toast('Upload a video first', 'err'); return; }
+  const btn = document.getElementById(btnId);
+  btn.disabled = true; btn.classList.add('running');
+  document.getElementById(progWrapId).classList.add('on');
+  document.getElementById(resultId).classList.remove('on');
+  document.getElementById(progBarId).style.width = '0%';
+  document.getElementById(progLabelId).textContent = 'Starting AI processing…';
+
+  fetch(API + url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(r => r.json()).then(d => {
+    if (!d.job_id) throw new Error(d.error || 'Failed to start');
+    const startTime = Date.now();
+    const timer = setInterval(async () => {
+      try {
+        const r = await fetch(API + '/status/' + d.job_id);
+        const s = await r.json();
+        const pct = s.progress || 0;
+        document.getElementById(progBarId).style.width = pct + '%';
+        document.getElementById(progLabelId).textContent =
+          (PROG_LABELS[Object.keys(PROG_LABELS).reverse().find(k => pct >= +k)] || 'Processing…')
+          + ' · ' + _fmtElapsed(Date.now() - startTime);
+        if (s.status === 'completed') {
+          clearInterval(timer);
+          document.getElementById(progBarId).style.width = '100%';
+          setTimeout(() => {
+            document.getElementById(progWrapId).classList.remove('on');
+            document.getElementById(resultId).classList.add('on');
+            btn.disabled = false; btn.classList.remove('running');
+            toast('Done! Click Download.', 'ok');
+            if (onDone) onDone(s, d.job_id);
+          }, 500);
+        } else if (s.status === 'failed') {
+          clearInterval(timer);
+          document.getElementById(progWrapId).classList.remove('on');
+          btn.disabled = false; btn.classList.remove('running');
+          toast('AI failed: ' + (s.error || 'Unknown error'), 'err');
+        }
+      } catch (_) {}
+    }, 2500);
+    return d.job_id;
+  }).catch(err => {
+    document.getElementById(progWrapId).classList.remove('on');
+    btn.disabled = false; btn.classList.remove('running');
+    toast('Error: ' + err.message, 'err');
+  });
+}
+
+// ── AUTO CAPTIONS ─────────────────────────────────────────────────────
+function runAutoCaption() {
+  const lang  = document.getElementById('captionLang').value;
+  const burn  = document.getElementById('captionBurn').checked;
+  _startAiJob(
+    'captionBtn', 'captionProgWrap', 'captionProgBar', 'captionProgLabel', 'captionResult',
+    '/auto-captions',
+    { filename: videoFile.name, language: lang, burn, style: _captionStyle },
+    (s, jid) => {
+      _aiJobs.caption = jid;
+      const info = document.getElementById('captionInfo');
+      info.textContent = `Language: ${s.language || '?'} · ${s.segments || 0} subtitle segments`;
+      const dlVideo = document.getElementById('captionDlVideo');
+      if (burn && s.output && !s.output.endsWith('.srt')) {
+        dlVideo.style.display = '';
+        dlVideo.onclick = () => window.open(API + '/download/' + jid, '_blank');
+      }
+    }
+  );
+}
+
+function downloadCaption(type) {
+  const jid = _aiJobs.caption;
+  if (!jid) { toast('No result yet', 'err'); return; }
+  if (type === 'srt') window.open(API + '/download-srt/' + jid, '_blank');
+  else window.open(API + '/download/' + jid, '_blank');
+}
+
+// ── BACKGROUND REMOVAL ────────────────────────────────────────────────
+function runBgRemove() {
+  _startAiJob(
+    'bgRemoveBtn', 'bgProgWrap', 'bgProgBar', 'bgProgLabel', 'bgResult',
+    '/remove-bg',
+    { filename: videoFile.name, bg_color: _bgColor },
+    (s, jid) => { _aiJobs.bgRemove = jid; }
+  );
+}
+
+// ── STABILIZE ────────────────────────────────────────────────────────
+function runStabilize() {
+  _startAiJob(
+    'stabilizeBtn', 'stabProgWrap', 'stabProgBar', 'stabProgLabel', 'stabResult',
+    '/stabilize',
+    {
+      filename:  videoFile.name,
+      shakiness: parseInt(document.getElementById('stabShakiness').value),
+      smoothing: parseInt(document.getElementById('stabSmoothing').value),
+    },
+    (s, jid) => { _aiJobs.stabilize = jid; }
+  );
+}
+
+// Generic download / preview for AI results
+function downloadAiJob(btnId) {
+  const map = { bgRemoveBtn: 'bgRemove', stabilizeBtn: 'stabilize' };
+  const jid = _aiJobs[map[btnId]];
+  if (jid) window.open(API + '/download/' + jid, '_blank');
+  else toast('No result yet', 'err');
+}
+function previewAiJob(btnId) {
+  const map = { stabilizeBtn: 'stabilize' };
+  const jid = _aiJobs[map[btnId]];
+  if (!jid) { toast('No result yet', 'err'); return; }
+  const v = document.getElementById('vid');
+  v.src = API + '/download/' + jid; v.load(); v.play();
+  toast('Previewing stabilized video', 'ok');
+}
+
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   const tag = (e.target.tagName || '').toLowerCase();
@@ -1731,6 +1995,7 @@ document.addEventListener('keydown', e => {
     case '2': switchTab('eraser');  break;
     case '3': switchTab('audio');   break;
     case '4': switchTab('tools');   break;
+    case '5': switchTab('ai');      break;
     case 'r': case 'R':
       if (videoFile && !e.ctrlKey && !e.metaKey) { e.preventDefault(); runDetect(); }
       break;
