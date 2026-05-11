@@ -18,8 +18,19 @@ venv/
 # Runtime output directories
 backend/uploads/
 backend/storage/
+backend/img_uploads/
 backend/tmp_frames/
 backend/tmp_verify/
+
+# Video files
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Cloudflare tunnel binary
+cloudflared.exe
+share_server.log
 
 # Logs
 *.log
