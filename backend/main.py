@@ -681,3 +681,19 @@ def image_result(job_id: str):
     if s.get("status") == "failed":
         raise HTTPException(500, s.get("error", "Processing failed"))
     raise HTTPException(425, "Not ready yet")
+
+
+@app.post("/promote-result/{job_id}")
+def promote_result(job_id: str):
+    """Copy a completed job's output into uploads/ so it can be used as a new source."""
+    s = get_job_status(job_id)
+    if s.get("status") != "completed":
+        raise HTTPException(400, "Job not completed")
+    out = s.get("output", "")
+    if not out or not os.path.exists(out):
+        raise HTTPException(404, "Output file not found")
+    ext = os.path.splitext(out)[1].lower() or ".mp4"
+    new_name = "edited_" + job_id[:8] + ext
+    dest = os.path.join(UPLOAD_DIR, new_name)
+    shutil.copy2(out, dest)
+    return {"success": True, "filename": new_name}

@@ -1568,9 +1568,333 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
 #objList{position:relative;}
 .ai-result.on{display:block;animation:fadein .2s ease;}
 @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VISUAL UPGRADE 3.0 — Aurora · Hero Drop Zone · Glassmorphism · UX
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── GRADIENT TEXT UTILITY ───────────────────────────────────────────── */
+.grad-text{
+  background:linear-gradient(120deg,#c4b5fd,#22d3ee,#a78bfa);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-size:200%;animation:shimmer-text 4s linear infinite;
+}
+
+/* ── AURORA BACKGROUND ───────────────────────────────────────────────── */
+.aurora{
+  position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;
+}
+.orb{
+  position:absolute;border-radius:50%;
+  filter:blur(90px);
+  will-change:transform;
+}
+.orb-1{
+  width:650px;height:650px;top:-15%;left:-12%;
+  background:radial-gradient(circle,rgba(139,92,246,.28) 0%,rgba(99,102,241,.1) 45%,transparent 70%);
+  animation:orb1 18s ease-in-out infinite alternate;
+}
+.orb-2{
+  width:550px;height:550px;bottom:-18%;right:-12%;
+  background:radial-gradient(circle,rgba(34,211,238,.22) 0%,rgba(59,130,246,.08) 45%,transparent 70%);
+  animation:orb2 22s ease-in-out infinite alternate;
+}
+.orb-3{
+  width:420px;height:420px;top:25%;right:18%;
+  background:radial-gradient(circle,rgba(236,72,153,.12) 0%,transparent 65%);
+  animation:orb3 14s ease-in-out infinite alternate;
+}
+@keyframes orb1{0%{transform:translate(0,0) scale(1);}100%{transform:translate(6%,8%) scale(1.12);}}
+@keyframes orb2{0%{transform:translate(0,0) scale(1);}100%{transform:translate(-8%,-6%) scale(1.15);}}
+@keyframes orb3{0%{transform:translate(0,0) scale(1);}100%{transform:translate(4%,10%) scale(0.9);}}
+
+/* ── GLASSMORPHISM PANEL ─────────────────────────────────────────────── */
+.panel{
+  background:rgba(8,8,24,.82)!important;
+  backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  border-left:1px solid rgba(139,92,246,.14)!important;
+}
+.panel-tabs{background:rgba(5,5,16,.9)!important;}
+.topbar{
+  background:rgba(5,5,16,.92)!important;
+  backdrop-filter:blur(28px) saturate(150%);
+  -webkit-backdrop-filter:blur(28px) saturate(150%);
+}
+
+/* ── HERO DROP ZONE ──────────────────────────────────────────────────── */
+.dz-orbital{
+  position:relative;
+  width:96px;height:96px;
+  display:flex;align-items:center;justify-content:center;
+}
+.dz-ring{
+  position:absolute;inset:-16px;border-radius:50%;
+  background:conic-gradient(from 0deg,rgba(139,92,246,.6),rgba(34,211,238,.5),rgba(167,139,250,.4),rgba(139,92,246,.6));
+  -webkit-mask:radial-gradient(circle,transparent calc(100% - 1.5px),#fff calc(100% - 1.5px));
+  mask:radial-gradient(circle,transparent calc(100% - 1.5px),#fff calc(100% - 1.5px));
+  animation:spin-ring 5s linear infinite;
+  filter:blur(0);
+}
+@keyframes spin-ring{to{transform:rotate(360deg);}}
+.dz-icon{
+  width:96px;height:96px;border-radius:28px;
+  background:linear-gradient(135deg,rgba(139,92,246,.18),rgba(34,211,238,.1));
+  border:1px solid rgba(139,92,246,.25);
+  box-shadow:0 0 0 0 rgba(139,92,246,.3);
+  display:flex;align-items:center;justify-content:center;
+  animation:icon-pulse 3s ease-in-out infinite,float-icon 3.5s ease-in-out infinite;
+}
+@keyframes icon-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,.3),0 12px 40px rgba(139,92,246,.15);}
+  50%{box-shadow:0 0 0 10px rgba(139,92,246,.0),0 20px 60px rgba(139,92,246,.3);}
+}
+.drop-zone:hover .dz-ring{animation:spin-ring 2.5s linear infinite;}
+.drop-zone:hover .dz-icon{
+  animation:none!important;transform:scale(1.07);
+  box-shadow:0 0 0 12px rgba(139,92,246,.06),0 20px 60px rgba(139,92,246,.35)!important;
+}
+.dz-headline{text-align:center;}
+.dz-title{
+  font-size:24px!important;font-weight:800!important;
+  letter-spacing:-.6px!important;
+  background:linear-gradient(120deg,#f0f4ff,#c4b5fd,#22d3ee);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-size:200%;
+  animation:shimmer-text 5s linear infinite;
+  line-height:1.2;margin-bottom:6px;
+}
+.dz-sub{font-size:13.5px!important;color:rgba(148,163,184,.65)!important;letter-spacing:-.1px;}
+.dz-feat{
+  display:flex;align-items:center;gap:5px;
+  padding:5px 12px;border-radius:20px;
+  background:rgba(139,92,246,.08);
+  border:1px solid rgba(139,92,246,.18);
+  font-size:10.5px;font-weight:600;color:rgba(196,181,253,.8);
+  letter-spacing:.2px;
+  transition:all .15s;cursor:default;
+}
+.dz-feat:hover{background:rgba(139,92,246,.16);border-color:rgba(139,92,246,.35);color:var(--p);}
+.dz-features{gap:5px;margin-top:12px;}
+
+/* ── ONBOARDING MODAL ────────────────────────────────────────────────── */
+.ob-overlay{
+  position:fixed;inset:0;z-index:9998;
+  background:rgba(5,5,16,.88);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:center;
+  animation:fadein .3s ease;
+}
+.ob-overlay.hidden{display:none;}
+.ob-modal{
+  background:linear-gradient(145deg,rgba(18,18,40,.97),rgba(10,10,28,.98));
+  border:1px solid rgba(139,92,246,.25);
+  border-radius:24px;
+  padding:40px 36px;
+  max-width:440px;width:calc(100% - 48px);
+  text-align:center;
+  position:relative;overflow:hidden;
+  box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);
+}
+.ob-glow{
+  position:absolute;top:-60px;left:50%;transform:translateX(-50%);
+  width:280px;height:200px;
+  background:radial-gradient(ellipse,rgba(139,92,246,.3),transparent 65%);
+  pointer-events:none;
+}
+.ob-logo{
+  width:60px;height:60px;margin:0 auto 16px;
+  background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(34,211,238,.1));
+  border:1px solid rgba(139,92,246,.3);border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+}
+.ob-title{
+  font-size:26px;font-weight:800;letter-spacing:-.6px;color:#f0f4ff;margin-bottom:8px;
+}
+.ob-sub{font-size:13px;color:var(--t3);margin-bottom:28px;line-height:1.6;}
+.ob-steps{
+  display:flex;flex-direction:column;gap:10px;margin-bottom:28px;text-align:left;
+}
+.ob-step{
+  display:flex;align-items:flex-start;gap:14px;
+  padding:12px 14px;border-radius:12px;
+  background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.12);
+}
+.ob-step-n{
+  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#8b5cf6,#22d3ee);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#fff;
+  box-shadow:0 4px 12px rgba(139,92,246,.4);
+}
+.ob-step-title{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px;}
+.ob-step-desc{font-size:11px;color:var(--t3);line-height:1.4;}
+.ob-cta{
+  width:100%;padding:14px;margin-bottom:14px;
+  background:linear-gradient(135deg,#8b5cf6,#22d3ee);
+  border:none;border-radius:12px;
+  color:#fff;font-size:15px;font-weight:800;
+  cursor:pointer;font-family:inherit;
+  box-shadow:0 8px 32px rgba(139,92,246,.5);
+  transition:all .2s;letter-spacing:.3px;
+}
+.ob-cta:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(139,92,246,.7);}
+.ob-skip{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  font-size:11px;color:var(--t3);cursor:pointer;
+}
+.ob-skip input{accent-color:var(--p);cursor:pointer;}
+
+/* ── ACCORDION ───────────────────────────────────────────────────────── */
+.acc-group{margin-bottom:8px;}
+.acc-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 13px;border-radius:10px;
+  background:rgba(139,92,246,.07);
+  border:1px solid rgba(139,92,246,.14);
+  cursor:pointer;font-size:11px;font-weight:800;
+  text-transform:uppercase;letter-spacing:1.2px;
+  color:rgba(196,181,253,.75);
+  transition:all .15s;user-select:none;
+}
+.acc-header:hover{background:rgba(139,92,246,.13);color:var(--p);}
+.acc-arrow{font-size:12px;transition:transform .2s;}
+.acc-body{overflow:hidden;padding-top:6px;}
+.acc-body.closed{display:none;}
+.acc-header.closed .acc-arrow{transform:rotate(-90deg);}
+
+/* ── USE AS SOURCE BUTTON ────────────────────────────────────────────── */
+.use-src-btn{
+  flex:1;padding:8px;border-radius:10px;font-family:inherit;
+  background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);
+  color:var(--p);font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.use-src-btn:hover{background:rgba(139,92,246,.2);border-color:rgba(139,92,246,.45);box-shadow:0 4px 16px rgba(139,92,246,.25);}
+
+/* ── CARD HOVER SHIMMER ──────────────────────────────────────────────── */
+.tool-card,.ai-card{overflow:hidden;}
+.tool-card::after,.ai-card::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.04) 50%,transparent 60%);
+  transform:translateX(-100%);
+  transition:transform .5s ease;
+  pointer-events:none;
+}
+.tool-card:hover::after,.ai-card:hover::after{transform:translateX(100%);}
+
+/* ── LOGO ORBITAL RING ───────────────────────────────────────────────── */
+.logo{position:relative;}
+.logo::before{
+  content:'';position:absolute;
+  inset:-4px;border-radius:50%;
+  background:conic-gradient(from 0deg,rgba(139,92,246,.5),rgba(34,211,238,.3),transparent,rgba(139,92,246,.5));
+  animation:spin-ring 6s linear infinite;
+  border-radius:16px;
+  opacity:0;transition:opacity .3s;
+}
+.logo:hover::before{opacity:1;}
+
+/* ── RESULT WRAP ENTRANCE ────────────────────────────────────────────── */
+.result-wrap.on,.ai-result.on{animation:result-enter .35s cubic-bezier(.22,1,.36,1) both;}
+@keyframes result-enter{
+  from{opacity:0;transform:translateY(8px) scale(.98);}
+  to{opacity:1;transform:none;}
+}
+
+/* ── IMPROVED PROGRESS ───────────────────────────────────────────────── */
+.progress-wrap{padding:6px 0;}
+.prog-bar-bg{height:6px;border-radius:4px;}
+.prog-bar{border-radius:4px;box-shadow:0 0 16px rgba(139,92,246,.65)!important;}
+.prog-label{font-size:11.5px;color:rgba(148,163,184,.75);letter-spacing:.15px;}
+
+/* ── VID-CONTROLS GLASS ──────────────────────────────────────────────── */
+.vid-controls{
+  background:rgba(5,5,16,.95)!important;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+
+/* ── TIMELINE GLASS ──────────────────────────────────────────────────── */
+.timeline{
+  background:rgba(5,5,16,.95)!important;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+
+/* ── PANEL SECTION LABELS ────────────────────────────────────────────── */
+.panel-label{
+  font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:2px;
+  color:rgba(139,92,246,.55);
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:12px;
+}
+
+/* ── BETTER EMPTY STATE ──────────────────────────────────────────────── */
+.fhint{transition:all .2s;}
+.fhint:hover{
+  border-color:rgba(139,92,246,.25)!important;
+  background:rgba(139,92,246,.06)!important;
+  transform:translateX(2px);
+}
+
+/* ── TOAST UPGRADE ───────────────────────────────────────────────────── */
+.toast{
+  display:flex;align-items:center;gap:8px;
+  font-size:13px!important;
+  letter-spacing:.1px;
+}
+
+/* ── SCROLLABLE PANEL FADE ───────────────────────────────────────────── */
+.panel-body,.tools-body{scroll-behavior:smooth;}
+
+/* ── PROC/ERASE BTN GLOW ON HOVER ───────────────────────────────────── */
+.proc-btn:hover{box-shadow:0 10px 40px rgba(139,92,246,.65),0 0 0 1px rgba(139,92,246,.3),inset 0 1px 0 rgba(255,255,255,.2)!important;}
+.erase-btn:hover{box-shadow:0 10px 40px rgba(239,68,68,.55),inset 0 1px 0 rgba(255,255,255,.2)!important;}
 </style>
 </head>
 <body>
+
+<!-- ══ ANIMATED AURORA BACKGROUND ══ -->
+<div class="aurora" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- ══ ONBOARDING MODAL ══ -->
+<div class="ob-overlay" id="obOverlay">
+  <div class="ob-modal">
+    <div class="ob-glow"></div>
+    <div class="ob-logo"><span style="font-size:26px;">&#127916;</span></div>
+    <h2 class="ob-title">Welcome to <span class="grad-text">FrameAI</span></h2>
+    <p class="ob-sub">AI-powered video &amp; photo editor. Get started in 3 steps.</p>
+    <div class="ob-steps">
+      <div class="ob-step">
+        <div class="ob-step-n">1</div>
+        <div class="ob-step-body">
+          <div class="ob-step-title">Drop your video</div>
+          <div class="ob-step-desc">MP4, MOV, AVI, MKV, WEBM — any size</div>
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-step-n">2</div>
+        <div class="ob-step-body">
+          <div class="ob-step-title">AI scans for objects</div>
+          <div class="ob-step-desc">YOLO detects people, cars, text &amp; more</div>
+        </div>
+      </div>
+      <div class="ob-step">
+        <div class="ob-step-n">3</div>
+        <div class="ob-step-body">
+          <div class="ob-step-title">Edit with 40+ AI tools</div>
+          <div class="ob-step-desc">Remove objects, captions, filters, BG removal &amp; more</div>
+        </div>
+      </div>
+    </div>
+    <button class="ob-cta" onclick="closeOnboarding()">&#9654; Start Editing</button>
+    <label class="ob-skip"><input type="checkbox" id="obDontShow"> Don&apos;t show again</label>
+  </div>
+</div>
 
 <div class="topbar">
   <div class="logo">
@@ -1607,14 +1931,19 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
       <div class="drop-zone" id="dropZone">
         <div class="dz-border"></div>
         <input type="file" accept="video/*" id="fileInput" onchange="onFileChosen(event)">
-        <div class="dz-icon">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="url(#dzg)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <defs><linearGradient id="dzg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#38bdf8"/></linearGradient></defs>
-            <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-          </svg>
+        <div class="dz-orbital">
+          <div class="dz-ring"></div>
+          <div class="dz-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="url(#dzg2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <defs><linearGradient id="dzg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient></defs>
+              <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </div>
         </div>
-        <div class="dz-title">Drop your video here</div>
-        <div class="dz-sub">or click to browse &mdash; up to any size</div>
+        <div class="dz-headline">
+          <div class="dz-title">Drop your video here</div>
+          <div class="dz-sub">or click to browse &mdash; AI editing in seconds</div>
+        </div>
         <div class="dz-fmts">
           <div class="dz-fmt">MP4</div>
           <div class="dz-fmt">MOV</div>
@@ -1726,7 +2055,10 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
         </div>
         <div class="result-wrap" id="resultWrap">
           <button class="dl-btn" onclick="download()">&#11015; Download Edited Video</button>
-          <button class="new-btn" onclick="reset()">+ New Video</button>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="use-src-btn" onclick="useAsSource(jobId)" title="Continue editing this result">&#8635; Use as Source</button>
+            <button class="new-btn" onclick="reset()" style="flex:1;">+ New Video</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1749,7 +2081,10 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
         </div>
         <div class="result-wrap" id="eraseResultWrap">
           <button class="dl-btn" onclick="downloadEraser()">&#11015; Download Erased Video</button>
-          <button class="new-btn" onclick="reset()">+ New Video</button>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="use-src-btn" onclick="useAsSource(eraserJobId)" title="Continue editing this result">&#8635; Use as Source</button>
+            <button class="new-btn" onclick="reset()" style="flex:1;">+ New Video</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1784,6 +2119,12 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
     <div id="content-tools" style="display:none;flex:1;overflow:hidden;">
       <div class="tools-body">
 
+        <div class="acc-group">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <span>&#9881; Transform &amp; Timing</span><span class="acc-arrow">&#8964;</span>
+          </div>
+          <div class="acc-body open">
+
         <div class="tool-card">
           <div class="tool-card-title">&#9986; Trim Video</div>
           <div class="trim-info">Range: <span id="trimRangeInfo">set timeline handles</span></div>
@@ -1810,6 +2151,15 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           <div class="progress-wrap" id="speedProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="speedProgBar"></div></div><div class="prog-label" id="speedProgLabel"></div></div>
           <div class="result-wrap" id="speedResult"><button class="preview-btn" onclick="previewTool('speed')">&#9654; Preview</button><button class="dl-btn" onclick="downloadTool('speed')">&#11015; Download</button></div>
         </div>
+
+          </div><!-- end acc-body Transform -->
+        </div><!-- end acc-group Transform -->
+
+        <div class="acc-group">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <span>&#127774; Enhance &amp; Color</span><span class="acc-arrow">&#8964;</span>
+          </div>
+          <div class="acc-body open">
 
         <div class="tool-card">
           <div class="tool-card-title">&#127774; Color &amp; Filters</div>
@@ -1874,6 +2224,15 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           <div class="progress-wrap" id="aspectProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="aspectProgBar"></div></div><div class="prog-label" id="aspectProgLabel"></div></div>
           <div class="result-wrap" id="aspectResult"><button class="preview-btn" onclick="previewTool('aspect')">&#9654; Preview</button><button class="dl-btn" onclick="downloadTool('aspect')">&#11015; Download</button></div>
         </div>
+
+          </div><!-- end acc-body Enhance -->
+        </div><!-- end acc-group Enhance -->
+
+        <div class="acc-group">
+          <div class="acc-header" onclick="toggleAcc(this)">
+            <span>&#128190; Export &amp; Creative</span><span class="acc-arrow">&#8964;</span>
+          </div>
+          <div class="acc-body open">
 
         <div class="tool-card">
           <div class="tool-card-title">&#128190; Export &amp; Compress</div>
@@ -2003,6 +2362,9 @@ input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
           <div class="progress-wrap" id="gifProgWrap" style="margin-top:10px;"><div class="prog-bar-bg"><div class="prog-bar" id="gifProgBar"></div></div><div class="prog-label" id="gifProgLabel"></div></div>
           <div class="result-wrap" id="gifResult"><button class="dl-btn" onclick="downloadTool('gif')" style="background:linear-gradient(135deg,var(--violet),var(--p));">&#11015; Download GIF</button></div>
         </div>
+
+          </div><!-- end acc-body Export -->
+        </div><!-- end acc-group Export -->
 
       </div>
     </div>
@@ -2417,6 +2779,109 @@ let editS = 0, editE = 0;
 let _serverOnline = false;
 
 const COLORS = ['#818cf8','#38bdf8','#34d399','#fbbf24','#fb923c','#f87171'];
+
+// ══════════════════════════════════════════════════════════════════════
+// ONBOARDING
+// ══════════════════════════════════════════════════════════════════════
+function closeOnboarding() {
+  const overlay = document.getElementById('obOverlay');
+  overlay.style.opacity = '0';
+  overlay.style.transition = 'opacity .3s';
+  setTimeout(() => overlay.classList.add('hidden'), 300);
+  if (document.getElementById('obDontShow').checked) {
+    localStorage.setItem('frameai_ob_seen', '1');
+  }
+}
+(function initOnboarding() {
+  if (localStorage.getItem('frameai_ob_seen')) {
+    document.getElementById('obOverlay').classList.add('hidden');
+  }
+})();
+
+// ══════════════════════════════════════════════════════════════════════
+// ACCORDION
+// ══════════════════════════════════════════════════════════════════════
+function toggleAcc(header) {
+  const body = header.nextElementSibling;
+  const isOpen = !body.classList.contains('closed');
+  body.classList.toggle('closed', isOpen);
+  header.classList.toggle('closed', isOpen);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// USE AS SOURCE — promote job output back to uploads for chaining
+// ══════════════════════════════════════════════════════════════════════
+async function useAsSource(jid) {
+  if (!jid) { toast('No result to use as source', 'err'); return; }
+  try {
+    const r = await fetch(API + '/promote-result/' + jid, { method: 'POST' });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.detail || d.error || 'Failed');
+    // Fake a videoFile object pointing to the new file in uploads
+    videoFile = { name: d.filename };
+    // Update topbar
+    document.getElementById('tbFileName').textContent = d.filename.length > 20 ? d.filename.slice(0,17)+'…' : d.filename;
+    document.getElementById('tbFile').classList.add('show');
+    // Reset AI/tool results but keep video loaded
+    objects = []; selected = null;
+    document.getElementById('objList').innerHTML = '<div class="obj-none">Click Scan to detect objects in the result</div>';
+    document.getElementById('selSec').style.display = 'none';
+    document.getElementById('rangeSec').style.display = 'none';
+    document.getElementById('procSec').style.display = 'none';
+    document.getElementById('detectBtn').disabled = false;
+    setStep(2);
+    toast('Result set as source — scan or edit it now!', 'ok');
+  } catch (err) {
+    toast('Failed to use as source: ' + err.message, 'err');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// LOCALSTORAGE — persist user preferences
+// ══════════════════════════════════════════════════════════════════════
+function _savePrefs() {
+  try {
+    localStorage.setItem('frameai_prefs', JSON.stringify({
+      speed: selectedSpeed,
+      aspect: selectedAspect,
+      compress: selectedCompress,
+      confThreshold: document.getElementById('confThreshold')?.value || 40,
+    }));
+  } catch (_) {}
+}
+function _loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem('frameai_prefs') || '{}');
+    if (p.speed)    { selectedSpeed = p.speed; setSpeed(p.speed); }
+    if (p.aspect)   { selectedAspect = p.aspect; setAspect(p.aspect); }
+    if (p.compress) { selectedCompress = p.compress; setCompress(p.compress); }
+    if (p.confThreshold) {
+      const el = document.getElementById('confThreshold');
+      if (el) { el.value = p.confThreshold; document.getElementById('confVal').textContent = p.confThreshold + '%'; }
+    }
+  } catch (_) {}
+}
+window.addEventListener('beforeunload', _savePrefs);
+
+// ══════════════════════════════════════════════════════════════════════
+// TIME ESTIMATES — rough per-operation estimates based on video duration
+// ══════════════════════════════════════════════════════════════════════
+const OP_SECS_PER_MIN = {
+  trim:5, speed:8, filter:10, rotate:5, reverse:12, fade:8, aspect:6,
+  compress:15, crop:5, text:6, volume:4, sharpen:8, denoise:14, vignette:7,
+  loop:10, gif:18,
+  'object-remove':120, 'magic-erase':120,
+  captions:25, 'bg-remove':90, stabilize:60,
+  'face-blur':45, 'ai-denoise':20, speedramp:30,
+};
+
+function _estimateLabel(op) {
+  if (!duration) return '';
+  const durMins = duration / 60;
+  const secs = Math.round((OP_SECS_PER_MIN[op] || 15) * Math.max(0.1, durMins));
+  if (secs < 60) return ' · ~' + secs + 's';
+  return ' · ~' + Math.round(secs / 60) + 'm';
+}
 
 // ── SERVER CONNECTION CHECK ────────────────────────────────────────────
 async function checkServer() {
@@ -2848,7 +3313,7 @@ async function process() {
   document.getElementById('progWrap').classList.add('on');
   document.getElementById('resultWrap').classList.remove('on');
   document.getElementById('progBar').style.width = '0%';
-  document.getElementById('progLabel').textContent = 'Starting...';
+  document.getElementById('progLabel').textContent = 'Starting…' + _estimateLabel('object-remove');
   try {
     const r = await fetch(API + '/process-edit', {
       method: 'POST',
@@ -3017,6 +3482,7 @@ function reset() {
 }
 
 setStep(1);
+_loadPrefs();
 
 let activeTab = 'remove';
 function switchTab(tab) {
@@ -3455,7 +3921,7 @@ async function runTool(type) {
   btn.disabled = true; btn.classList.add('running');
   pw.classList.add('on'); rw.classList.remove('on');
   document.getElementById(type + 'ProgBar').style.width = '0%';
-  document.getElementById(type + 'ProgLabel').textContent = 'Processing…';
+  document.getElementById(type + 'ProgLabel').textContent = 'Processing…' + _estimateLabel(type);
   try {
     const r = await fetch(API + '/quick-edit', {
       method: 'POST',
